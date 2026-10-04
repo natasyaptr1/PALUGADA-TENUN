@@ -3,9 +3,9 @@
 @section('content')
 <section class="store-hero" id="beranda">
     <div class="hero-copy">
-        @auth
+        @if(auth()->check())
             @if(auth()->user()->peran === 'pembeli')<span class="kicker">SELAMAT DATANG, {{ strtoupper(explode(' ', auth()->user()->nama)[0]) }}</span>@else<span class="kicker">TENUN IKAT PALUGADA BANDAR</span>@endif
-        @else<span class="kicker">WARISAN BUDAYA DARI BANDAR</span>@endauth
+        @else<span class="kicker">WARISAN BUDAYA DARI BANDAR</span>@endif
         <h1>Tenun ikat dengan cerita di setiap motif.</h1>
         <p>Jelajahi koleksi Palugada Bandar dengan informasi produk dan stok yang mudah dipahami.</p>
         <div class="hero-actions">
@@ -83,7 +83,7 @@
 
 <section class="join-banner" id="bantuan-info">
     <div class="join-art"><div class="loom-lines"></div></div>
-    <div class="join-copy"><span class="kicker">BUTUH BANTUAN?</span><h2>Mulai dari koleksi, lalu lihat detail produk.</h2><p>Kamu bisa mencari berdasarkan nama, motif, warna, atau jenis. Jika sudah punya akun, semua menu pribadi tersedia dari tombol “Akun Saya”.</p><div class="join-actions">@if(auth()->user()?->peran === 'pembeli')<a class="btn btn-primary" href="{{ route('pembeli.akun') }}">Buka Akun Saya</a>@guest<a class="btn btn-primary" href="{{ route('daftar') }}">Daftar Sekarang</a><a class="btn btn-outline" href="{{ route('masuk') }}">Masuk</a>@endguest</div></div>
+    <div class="join-copy"><span class="kicker">BUTUH BANTUAN?</span><h2>Mulai dari koleksi, lalu lihat detail produk.</h2><p>Kamu bisa mencari berdasarkan nama, motif, warna, atau jenis. Jika sudah punya akun, semua menu pribadi tersedia dari tombol “Akun Saya”.</p><div class="join-actions">@if(auth()->user()?->peran === 'pembeli')<a class="btn btn-primary" href="{{ route('pembeli.akun') }}">Buka Akun Saya</a>@elseif(!auth()->check())<a class="btn btn-primary" href="{{ route('daftar') }}">Daftar Sekarang</a><a class="btn btn-outline" href="{{ route('masuk') }}">Masuk</a>@endif</div></div>
 </section>
 
 <div class="product-modal" id="productModal" aria-hidden="true">
