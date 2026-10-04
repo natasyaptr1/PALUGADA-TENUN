@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
-import 'services/api_service.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  final pengguna = await ApiService().saya();
-  runApp(PalugadaPenenunApp(penggunaAwal: pengguna));
+  runApp(const PalugadaPenenunApp());
 }
 
 class PalugadaPenenunApp extends StatelessWidget {
-  final Map<String, dynamic>? penggunaAwal;
-  const PalugadaPenenunApp({super.key, this.penggunaAwal});
+  const PalugadaPenenunApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +17,7 @@ class PalugadaPenenunApp extends StatelessWidget {
       title: 'Palugada Penenun',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: penggunaAwal?['peran'] == 'penenun' ? HomeScreen(pengguna: penggunaAwal!) : const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }

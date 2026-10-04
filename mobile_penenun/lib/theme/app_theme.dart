@@ -1,50 +1,77 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const green = Color(0xFF163F32);
-  static const greenSoft = Color(0xFFE7F0EB);
+  static const green = Color(0xFF174C3C);
+  static const greenDark = Color(0xFF10382D);
+  static const greenSoft = Color(0xFFE4EEE8);
   static const cream = Color(0xFFF7F2E8);
-  static const ink = Color(0xFF18231F);
-  static const muted = Color(0xFF68736D);
+  static const surface = Color(0xFFFFFDF9);
+  static const ink = Color(0xFF1E2D28);
+  static const muted = Color(0xFF6E7773);
+  static const border = Color(0xFFE1D9CD);
+  static const terracotta = Color(0xFFB96F4B);
 
   static ThemeData get light {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: green,
+      brightness: Brightness.light,
+      primary: green,
+      surface: surface,
+    );
+
     return ThemeData(
       useMaterial3: true,
+      colorScheme: scheme,
       scaffoldBackgroundColor: cream,
-      colorScheme: ColorScheme.fromSeed(seedColor: green, primary: green),
-      fontFamily: 'Arial',
+      appBarTheme: const AppBarTheme(
+        backgroundColor: cream,
+        foregroundColor: ink,
+        elevation: 0,
+        centerTitle: false,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: greenSoft,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? green : muted,
+          );
+        }),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        labelStyle: const TextStyle(color: muted),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: green, width: 1.4),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: green, width: 1.5),
         ),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
           backgroundColor: green,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          minimumSize: const Size.fromHeight(54),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
-      cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: Colors.grey.shade200),
-        ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: green),
       ),
+      dividerColor: border,
     );
   }
 }

@@ -1,18 +1,23 @@
 @extends('layouts.app')
 @section('title','Keranjang - Palugada Bandar')
 @section('content')
-<section class="account-page">
-    <div class="section-heading"><span class="kicker">BELANJA</span><h1>Keranjang</h1><p>Tempat produk pilihanmu sebelum melanjutkan ke pemesanan.</p></div>
-    <div class="account-layout">
-        <aside class="account-menu">
-            <a href="{{ route('pembeli.akun') }}">Beranda Akun</a>
-            <a href="{{ route('pembeli.profil') }}">Profil</a>
-            <a href="{{ route('pembeli.pesanan') }}">Pesanan Saya</a>
-            <a class="active" href="{{ route('pembeli.keranjang') }}">Keranjang</a>
-        </aside>
-        <section class="customer-panel">
-            <div class="friendly-empty large"><span>⌑</span><h2>Keranjangmu masih kosong</h2><p>Struktur halaman sudah disiapkan agar nanti fitur keranjang bisa ditambahkan tanpa mengubah alur navigasi pembeli.</p><a href="{{ route('pembeli.katalog') }}#produk" class="btn btn-primary">Pilih Produk</a></div>
-        </section>
+<section class="member-simple-page member-list-page-v4">
+    <div class="member-simple-head member-simple-head-v4">
+        <div>
+            <span class="eyebrow">KERANJANG</span>
+            <h1>Keranjang Saya</h1>
+            <p>Produk yang kamu pilih akan terkumpul di sini sebelum dibuat menjadi pesanan.</p>
+        </div>
+        <a href="{{ route('pembeli.katalog') }}" class="btn btn-outline">Lihat Koleksi</a>
+    </div>
+
+    <div class="member-flat-empty member-flat-empty-large member-empty-v4">
+        <span>◇</span>
+        <div>
+            <strong>Keranjangmu masih kosong</strong>
+            <p>Pilih produk yang kamu suka dari koleksi Palugada.</p>
+        </div>
+        <a href="{{ route('pembeli.katalog') }}" class="btn btn-primary">Mulai Belanja</a>
     </div>
 </section>
 @endsection

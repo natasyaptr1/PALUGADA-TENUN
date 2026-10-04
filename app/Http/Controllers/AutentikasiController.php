@@ -44,7 +44,7 @@ class AutentikasiController extends Controller
         return match ($pengguna->peran) {
             'admin' => redirect()->route('admin.beranda'),
             'penenun' => redirect()->route('penenun.beranda'),
-            default => redirect()->route('pembeli.akun'),
+            default => redirect()->route('pembeli.katalog'),
         };
     }
 
@@ -83,7 +83,7 @@ class AutentikasiController extends Controller
         Auth::login($pengguna);
         $request->session()->regenerate();
 
-        return redirect()->route('pembeli.akun')->with('success', 'Akun berhasil dibuat. Selamat datang di Palugada Bandar.');
+        return redirect()->route('pembeli.katalog')->with('success', 'Akun berhasil dibuat. Selamat datang di Palugada Bandar.');
     }
 
     public function keluar(Request $request): RedirectResponse
@@ -92,6 +92,6 @@ class AutentikasiController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('masuk');
+        return redirect()->route('landing');
     }
 }

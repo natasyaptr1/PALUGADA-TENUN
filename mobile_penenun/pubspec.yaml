@@ -1,5 +1,5 @@
 name: palugada_penenun
-description: Aplikasi Android untuk penenun Palugada Bandar.
+description: Aplikasi Android penenun Tenun Ikat Palugada Bandar.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.2.2
-  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:

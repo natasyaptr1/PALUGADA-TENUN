@@ -1,0 +1,17 @@
+PALUGADA BANDAR - UPDATE UX V2
+
+1. Copy seluruh isi folder/ZIP patch ini ke root project Laravel:
+   D:\Laragon\www\palugada-tenun
+2. Pilih Replace files in destination.
+3. Jangan hapus atau ganti file .env milik project yang sudah berjalan.
+4. Jalankan:
+   php artisan optimize:clear
+   php artisan db:seed --class=DatabaseSeeder
+   php artisan serve
+5. Login admin:
+   Email    : admin@palugadabandar.id
+   Password : PalugadaAdmin123!
+
+Seeder tidak memakai migrate:fresh dan tidak menghapus tabel/database. Seeder memperbarui akun admin utama dan memastikan data demo dasar tersedia.
+
+Pembeli tetap mendaftar dari halaman publik. Penenun dibuat oleh admin dari menu Data Penenun dan dipakai untuk aplikasi Flutter.

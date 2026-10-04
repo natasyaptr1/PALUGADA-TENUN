@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? `<img src="${button.dataset.image}" alt="${button.dataset.name || 'Produk'}">`
           : '<div class="fabric-placeholder"><span>PB</span></div>';
       }
+
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
@@ -42,6 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.js-coming-soon').forEach((button) => {
     button.addEventListener('click', () => {
       window.alert(button.dataset.feature || 'Fitur ini sedang disiapkan dan akan segera tersedia.');
+    });
+  });
+
+  document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const field = button.closest('.password-field');
+      const input = field?.querySelector('[data-password-input]');
+      if (!input) return;
+
+      const willShow = input.type === 'password';
+      input.type = willShow ? 'text' : 'password';
+      button.classList.toggle('is-visible', willShow);
+      button.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+      button.setAttribute('aria-label', willShow ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
     });
   });
 

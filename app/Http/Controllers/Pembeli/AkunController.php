@@ -10,13 +10,9 @@ use Illuminate\View\View;
 
 class AkunController extends Controller
 {
-    public function beranda(Request $request): View
+    public function beranda(): RedirectResponse
     {
-        $pengguna = $request->user();
-        $jumlahPesanan = $pengguna->pesanan()->count();
-        $pesananTerbaru = $pengguna->pesanan()->latest('tanggal_pesanan')->take(3)->get();
-
-        return view('pembeli.akun', compact('pengguna', 'jumlahPesanan', 'pesananTerbaru'));
+        return redirect()->route('pembeli.profil');
     }
 
     public function profil(Request $request): View
