@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<rect width="100%" height="100%" fill="#F7F4EE"/>
+<rect x="0" y="0" width="230" height="1024" fill="#20343D"/>
+<rect x="24" y="28" rx="12" width="42" height="42" fill="#C9AA78"/>
+<text x="38" y="55" font-family="Arial" font-size="14" font-weight="700" fill="#20343D">TI</text>
+<text x="78" y="45" font-family="Arial" font-size="16" font-weight="700" fill="#F7F4EE">Palugada</text>
+<text x="78" y="62" font-family="Arial" font-size="11" fill="#BCC7C3">Tenun Ikat</text>
+<rect x="18" y="101" rx="10" width="194" height="38" fill="#314B54"/>
+<text x="34" y="125" font-family="Arial" font-size="13" fill="#F4F5F2">Dashboard</text>
+<rect x="18" y="149" rx="10" width="194" height="38" fill="#314B54"/>
+<text x="34" y="173" font-family="Arial" font-size="13" fill="#F4F5F2">Produk & Stok</text>
+<rect x="18" y="197" rx="10" width="194" height="38" fill="#314B54"/>
+<text x="34" y="221" font-family="Arial" font-size="13" fill="#F4F5F2">Data Penenun</text>
+<rect x="18" y="245" rx="10" width="194" height="38" fill="#314B54"/>
+<text x="34" y="269" font-family="Arial" font-size="13" fill="#F4F5F2">Target Produksi</text>
+<rect x="18" y="293" rx="10" width="194" height="38" fill="#253941"/>
+<text x="34" y="317" font-family="Arial" font-size="13" fill="#F4F5F2">Pesanan</text>
+<rect x="18" y="341" rx="10" width="194" height="38" fill="#253941"/>
+<text x="34" y="365" font-family="Arial" font-size="13" fill="#F4F5F2">Laporan</text>
+<text x="278" y="70" font-family="Arial" font-size="11" font-weight="700" fill="#AD6D50" letter-spacing="2">TENUN IKAT PALUGADA</text>
+<text x="278" y="112" font-family="Georgia" font-size="36" font-weight="700" fill="#203047">Produk & Stok</text>
+<text x="278" y="140" font-family="Arial" font-size="14" fill="#66717D">Kelola informasi produk dan lihat stok yang terhubung</text>
+<rect x="278.0" y="185" rx="18" width="359.3333333333333" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="298.0" y="219" font-family="Arial" font-size="12" fill="#66717D">Total Produk</text>
+<text x="298.0" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">24</text>
+<rect x="655.3333333333333" y="185" rx="18" width="359.3333333333333" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="675.3333333333333" y="219" font-family="Arial" font-size="12" fill="#66717D">Stok Tersedia</text>
+<text x="675.3333333333333" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">68</text>
+<rect x="1032.6666666666665" y="185" rx="18" width="359.3333333333333" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="1052.6666666666665" y="219" font-family="Arial" font-size="12" fill="#66717D">Nonaktif</text>
+<text x="1052.6666666666665" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">3</text>
+<rect x="278" y="345" rx="20" width="1114" height="500" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="302" y="387" font-family="Arial" font-size="16" font-weight="700" fill="#203047">Area kerja</text>
+<line x1="302" y1="435" x2="1368" y2="435" stroke="#EEEAE2"/>
+<rect x="302" y="450" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="454" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="470" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="302" y1="493" x2="1368" y2="493" stroke="#EEEAE2"/>
+<rect x="302" y="508" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="512" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="528" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="302" y1="551" x2="1368" y2="551" stroke="#EEEAE2"/>
+<rect x="302" y="566" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="570" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="586" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="302" y1="609" x2="1368" y2="609" stroke="#EEEAE2"/>
+<rect x="302" y="624" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="628" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="644" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="302" y1="667" x2="1368" y2="667" stroke="#EEEAE2"/>
+<rect x="302" y="682" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="686" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="702" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="302" y1="725" x2="1368" y2="725" stroke="#EEEAE2"/>
+<rect x="302" y="740" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="360" y="744" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="360" y="760" rx="4" width="140" height="7" fill="#ECE9E3"/>
+</svg>

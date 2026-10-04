@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="844" viewBox="0 0 390 844">
+<rect width="100%" height="100%" fill="#F7F4EE"/>
+<text x="22" y="70" font-family="Arial" font-size="11" font-weight="700" fill="#AD6D50" letter-spacing="2">TENUN IKAT PALUGADA</text>
+<text x="22" y="112" font-family="Georgia" font-size="36" font-weight="700" fill="#203047">Target Produksi</text>
+<text x="22" y="140" font-family="Arial" font-size="14" fill="#66717D">Target kerja dan hasil produksi dalam satu alur</text>
+<rect x="22" y="185" rx="18" width="346" height="120" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="42" y="220" font-family="Arial" font-size="12" fill="#66717D">Target Aktif</text>
+<text x="42" y="257" font-family="Georgia" font-size="22" font-weight="700" fill="#203047">3</text>
+<rect x="22" y="327" rx="18" width="346" height="120" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="42" y="362" font-family="Arial" font-size="12" fill="#66717D">Selesai Hari Ini</text>
+<text x="42" y="399" font-family="Georgia" font-size="22" font-weight="700" fill="#203047">4</text>
+<rect x="22" y="469" rx="18" width="346" height="120" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="42" y="504" font-family="Arial" font-size="12" fill="#66717D">Riwayat</text>
+<text x="42" y="541" font-family="Georgia" font-size="22" font-weight="700" fill="#203047">18</text>
+<rect x="18" y="780" rx="22" width="354" height="48" fill="#20343D"/>
+<circle cx="78" cy="804" r="5" fill="#F7F4EE"/><circle cx="195" cy="804" r="5" fill="#C9AA78"/><circle cx="312" cy="804" r="5" fill="#F7F4EE"/>
+</svg>

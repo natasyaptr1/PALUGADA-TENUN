@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('target_produksi',function(Blueprint $table){$table->id();$table->foreignId('produk_id')->constrained('produk')->restrictOnDelete();$table->foreignId('penenun_id')->constrained('pengguna')->restrictOnDelete();$table->unsignedInteger('jumlah_target');$table->date('tanggal_mulai');$table->date('tanggal_deadline')->nullable();$table->enum('status',['berjalan','selesai','dibatalkan'])->default('berjalan')->index();$table->timestamps();}); } public function down(): void { Schema::dropIfExists('target_produksi'); } };

@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('pengguna',function(Blueprint $table){$table->id();$table->string('nama',100);$table->string('email',120)->unique();$table->string('no_hp',20)->nullable();$table->text('alamat')->nullable();$table->string('kata_sandi');$table->enum('peran',['admin','penenun','pembeli'])->default('pembeli')->index();$table->enum('status',['aktif','nonaktif'])->default('aktif');$table->rememberToken();$table->timestamps();}); } public function down(): void { Schema::dropIfExists('pengguna'); } };

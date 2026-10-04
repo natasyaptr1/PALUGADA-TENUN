@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1024" viewBox="0 0 1440 1024">
+<rect width="100%" height="100%" fill="#F7F4EE"/>
+<text x="48" y="70" font-family="Arial" font-size="11" font-weight="700" fill="#AD6D50" letter-spacing="2">TENUN IKAT PALUGADA</text>
+<text x="48" y="112" font-family="Georgia" font-size="36" font-weight="700" fill="#203047">Katalog Tenun Ikat</text>
+<text x="48" y="140" font-family="Arial" font-size="14" fill="#66717D">Temukan motif, warna, dan produk yang tersedia</text>
+<rect x="48.0" y="185" rx="18" width="436.0" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="68.0" y="219" font-family="Arial" font-size="12" fill="#66717D">Motif Pilihan</text>
+<text x="68.0" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">Klasik</text>
+<rect x="502.0" y="185" rx="18" width="436.0" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="522.0" y="219" font-family="Arial" font-size="12" fill="#66717D">Produk Tersedia</text>
+<text x="522.0" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">21</text>
+<rect x="956.0" y="185" rx="18" width="436.0" height="132" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="976.0" y="219" font-family="Arial" font-size="12" fill="#66717D">Koleksi</text>
+<text x="976.0" y="261" font-family="Georgia" font-size="24" font-weight="700" fill="#203047">Palugada</text>
+<rect x="48" y="345" rx="20" width="1344" height="500" fill="#FFFFFF" stroke="#E4DED4"/>
+<text x="72" y="387" font-family="Arial" font-size="16" font-weight="700" fill="#203047">Area kerja</text>
+<line x1="72" y1="435" x2="1368" y2="435" stroke="#EEEAE2"/>
+<rect x="72" y="450" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="454" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="470" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="72" y1="493" x2="1368" y2="493" stroke="#EEEAE2"/>
+<rect x="72" y="508" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="512" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="528" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="72" y1="551" x2="1368" y2="551" stroke="#EEEAE2"/>
+<rect x="72" y="566" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="570" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="586" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="72" y1="609" x2="1368" y2="609" stroke="#EEEAE2"/>
+<rect x="72" y="624" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="628" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="644" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="72" y1="667" x2="1368" y2="667" stroke="#EEEAE2"/>
+<rect x="72" y="682" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="686" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="702" rx="4" width="140" height="7" fill="#ECE9E3"/>
+<line x1="72" y1="725" x2="1368" y2="725" stroke="#EEEAE2"/>
+<rect x="72" y="740" rx="7" width="38" height="30" fill="#E7EFEA"/>
+<rect x="130" y="744" rx="4" width="220" height="9" fill="#D9D7D1"/>
+<rect x="130" y="760" rx="4" width="140" height="7" fill="#ECE9E3"/>
+</svg>
