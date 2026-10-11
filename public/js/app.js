@@ -18,11 +18,43 @@ document.addEventListener('DOMContentLoaded', () => {
       setText('modalMaterial', button.dataset.material);
       setText('modalStock', button.dataset.stock, '0');
 
+      let images = [];
+      try {
+        images = JSON.parse(button.dataset.images || '[]');
+      } catch (e) {
+        images = [];
+      }
+      if (images.length === 0 && button.dataset.image) {
+        images = [button.dataset.image];
+      }
+
       const imageWrap = document.getElementById('modalProductImage');
+      const thumbsWrap = document.getElementById('modalThumbnails');
+
       if (imageWrap) {
-        imageWrap.innerHTML = button.dataset.image
-          ? `<img src="${button.dataset.image}" alt="${button.dataset.name || 'Produk'}">`
+        imageWrap.innerHTML = images.length > 0
+          ? `<img id="modalMainImg" src="${images[0]}" alt="${button.dataset.name || 'Produk'}">`
           : '<div class="fabric-placeholder"><span>PB</span></div>';
+      }
+
+      if (thumbsWrap) {
+        thumbsWrap.innerHTML = '';
+        if (images.length > 1) {
+          images.forEach((src, idx) => {
+            const thumbBtn = document.createElement('button');
+            thumbBtn.type = 'button';
+            thumbBtn.className = `modal-thumb-btn ${idx === 0 ? 'active' : ''}`;
+            thumbBtn.setAttribute('aria-label', `Lihat foto ke-${idx + 1}`);
+            thumbBtn.innerHTML = `<img src="${src}" alt="Thumbnail ${idx + 1}">`;
+            thumbBtn.addEventListener('click', () => {
+              const mainImg = document.getElementById('modalMainImg');
+              if (mainImg) mainImg.src = src;
+              thumbsWrap.querySelectorAll('.modal-thumb-btn').forEach((b) => b.classList.remove('active'));
+              thumbBtn.classList.add('active');
+            });
+            thumbsWrap.appendChild(thumbBtn);
+          });
+        }
       }
 
       modal.classList.add('open');
@@ -57,6 +89,30 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('is-visible', willShow);
       button.setAttribute('aria-pressed', willShow ? 'true' : 'false');
       button.setAttribute('aria-label', willShow ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi');
+    });
+  });
+
+  document.querySelectorAll('.js-btn-reset').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const form = button.closest('form');
+      if (!form) return;
+      const mode = button.dataset.mode;
+      if (mode === 'edit') {
+        form.reset();
+      } else {
+        event.preventDefault();
+        form.querySelectorAll('input, textarea, select').forEach((field) => {
+          if (field.type === 'hidden') return;
+          if (field.readOnly) return;
+          if (field.type === 'checkbox' || field.type === 'radio') {
+            field.checked = false;
+          } else if (field.tagName === 'SELECT') {
+            field.selectedIndex = 0;
+          } else {
+            field.value = '';
+          }
+        });
+      }
     });
   });
 

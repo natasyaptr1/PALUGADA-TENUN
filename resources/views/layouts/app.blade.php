@@ -60,6 +60,7 @@
                 </div>
             </header>
             @if(session('success'))<div class="toast success" role="status">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast error" role="alert">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
 
@@ -73,6 +74,7 @@
         </header>
         <main class="worker-content">
             @if(session('success'))<div class="toast success" role="status">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast error" role="alert">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
 
@@ -99,6 +101,7 @@
         </header>
         <main class="member-content">
             @if(session('success'))<div class="toast success" role="status">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast error" role="alert">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
         <footer class="member-footer"><span>© {{ date('Y') }} Palugada Bandar</span><a href="{{ route('pembeli.katalog') }}">Lihat koleksi</a></footer>
@@ -133,6 +136,7 @@
 
         <main class="store-content">
             @if(session('success'))<div class="toast success" role="status">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast error" role="alert">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
 
@@ -168,6 +172,7 @@
     @else
         <main class="auth-content">
             @if(session('success'))<div class="toast success" role="status">{{ session('success') }}</div>@endif
+            @if(session('error'))<div class="toast error" role="alert">{{ session('error') }}</div>@endif
             @yield('content')
         </main>
     @endif

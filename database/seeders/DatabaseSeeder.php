@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\JenisProduk;
+use App\Models\Keahlian;
 use App\Models\Pengguna;
 use App\Models\Produk;
 use App\Models\ProfilPenenun;
@@ -42,15 +44,30 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        ProfilPenenun::firstOrCreate(
+        $keahlianIkat = Keahlian::firstOrCreate(['nama_keahlian' => 'Tenun Ikat']);
+        $keahlianWarna = Keahlian::firstOrCreate(['nama_keahlian' => 'Pewarnaan Alami']);
+        Keahlian::firstOrCreate(['nama_keahlian' => 'Tenun Songket']);
+        Keahlian::firstOrCreate(['nama_keahlian' => 'Desain Motif']);
+        Keahlian::firstOrCreate(['nama_keahlian' => 'Penggulungan Benang']);
+        Keahlian::firstOrCreate(['nama_keahlian' => 'Finishing & Jahit']);
+
+        $profilPenenun = ProfilPenenun::firstOrCreate(
             ['pengguna_id' => $penenun->id],
-            ['kode_penenun' => 'PNN-001', 'keahlian' => 'Tenun Ikat']
+            ['kode_penenun' => 'PNN-001', 'keahlian' => 'Tenun Ikat, Pewarnaan Alami']
         );
+        $profilPenenun->daftarKeahlian()->syncWithoutDetaching([$keahlianIkat->id, $keahlianWarna->id]);
+
+        $jenisKain = JenisProduk::firstOrCreate(['nama_jenis' => 'Kain Tenun']);
+        JenisProduk::firstOrCreate(['nama_jenis' => 'Sarung Tenun']);
+        JenisProduk::firstOrCreate(['nama_jenis' => 'Selendang & Syal']);
+        JenisProduk::firstOrCreate(['nama_jenis' => 'Baju Tenun']);
+        JenisProduk::firstOrCreate(['nama_jenis' => 'Aksesoris Tenun']);
 
         $produk = Produk::firstOrCreate(
             ['kode_produk' => 'TNP-001'],
             [
                 'nama_produk' => 'Tenun Ikat Motif Klasik',
+                'jenis_produk_id' => $jenisKain->id,
                 'jenis' => 'Kain Tenun',
                 'motif' => 'Klasik',
                 'warna' => 'Navy-Cream',
@@ -60,6 +77,10 @@ class DatabaseSeeder extends Seeder
                 'status' => 'aktif',
             ]
         );
+
+        if (!$produk->jenis_produk_id) {
+            $produk->update(['jenis_produk_id' => $jenisKain->id]);
+        }
 
         Stok::firstOrCreate(['produk_id' => $produk->id], ['jumlah_stok' => 0]);
     }

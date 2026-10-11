@@ -62,6 +62,11 @@ Route::get('/katalog', function () {
 Route::middleware('guest')->group(function () {
     Route::get('/masuk', [AutentikasiController::class, 'tampilMasuk'])->name('masuk');
     Route::post('/masuk', [AutentikasiController::class, 'masuk'])->name('masuk.proses');
+
+    Route::get('/login', function () {
+        return redirect('/masuk');
+    })->name('login');
+
     Route::get('/daftar', [AutentikasiController::class, 'tampilDaftar'])->name('daftar');
     Route::post('/daftar', [AutentikasiController::class, 'daftar'])->name('daftar.proses');
 });
@@ -80,6 +85,7 @@ Route::middleware(['auth', 'peran:admin'])->prefix('admin')->name('admin.')->gro
     Route::get('/beranda', BerandaController::class)->name('beranda');
 
     Route::resource('produk', ProdukController::class)->except(['show']);
+    Route::delete('produk/{produk}/foto/{foto}', [ProdukController::class, 'destroyFoto'])->name('produk.foto.destroy');
     Route::resource('penenun', PenenunController::class)->except(['show']);
 
     Route::view('/stok', 'admin.placeholder', [

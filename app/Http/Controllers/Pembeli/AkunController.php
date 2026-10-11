@@ -27,14 +27,14 @@ class AkunController extends Controller
         $data = $request->validate([
             'nama' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:120', Rule::unique('pengguna', 'email')->ignore($pengguna->id)],
-            'no_hp' => ['nullable', 'string', 'max:20'],
+            'no_hp' => ['nullable', 'string', 'regex:/^(?:\+62|62|0)8[0-9]{8,13}$/'],
             'alamat' => ['nullable', 'string', 'max:1000'],
         ], [
             'nama.required' => 'Nama wajib diisi.',
             'email.required' => 'Email wajib diisi.',
             'email.email' => 'Format email belum sesuai.',
             'email.unique' => 'Email ini sudah digunakan akun lain.',
-            'no_hp.max' => 'Nomor HP maksimal 20 karakter.',
+            'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan format nomor Indonesia (contoh: 081234567890 atau +628123456789).',
         ]);
 
         $pengguna->update($data);

@@ -1,7 +1,15 @@
+@php
+    $daftarFoto = $produk->semuaFoto();
+    $fotoUtama = !empty($daftarFoto) ? asset('storage/'.$daftarFoto[0]) : '';
+    $jsonFoto = json_encode(array_map(fn($f) => asset('storage/'.$f), $daftarFoto));
+@endphp
 <article class="store-product-card">
     <div class="store-product-image">
-        @if($produk->foto)
-            <img src="{{ asset('storage/'.$produk->foto) }}" alt="{{ $produk->nama_produk }}">
+        @if(!empty($daftarFoto))
+            <img src="{{ $fotoUtama }}" alt="{{ $produk->nama_produk }}">
+            @if(count($daftarFoto) > 1)
+                <span class="multi-photo-badge" title="{{ count($daftarFoto) }} foto">📷 {{ count($daftarFoto) }} Foto</span>
+            @endif
         @else
             <div class="fabric-placeholder"><span>{{ strtoupper(substr($produk->nama_produk,0,2)) }}</span></div>
         @endif
@@ -26,7 +34,8 @@
                 data-material="{{ $produk->material }}"
                 data-price="Rp {{ number_format($produk->harga,0,',','.') }}"
                 data-stock="{{ $produk->stok?->jumlah_stok ?? 0 }}"
-                data-image="{{ $produk->foto ? asset('storage/'.$produk->foto) : '' }}">Lihat Detail</button>
+                data-image="{{ $fotoUtama }}"
+                data-images="{{ $jsonFoto }}">Lihat Detail</button>
         </div>
     </div>
 </article>

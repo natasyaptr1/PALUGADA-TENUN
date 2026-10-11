@@ -58,17 +58,17 @@ class AutentikasiController extends Controller
         $data = $request->validate([
             'nama' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:120', 'unique:pengguna,email'],
-            'no_hp' => ['nullable', 'string', 'max:20'],
-            'kata_sandi' => ['required', 'confirmed', Password::min(8)],
+            'no_hp' => ['nullable', 'string', 'regex:/^(?:\+62|62|0)8[0-9]{8,13}$/'],
+            'kata_sandi' => ['required', 'string', 'min:8', 'confirmed'],
         ], [
             'nama.required' => 'Nama wajib diisi.',
             'email.required' => 'Email wajib diisi.',
             'email.email' => 'Format email belum sesuai.',
             'email.unique' => 'Email ini sudah terdaftar. Silakan masuk menggunakan akun tersebut.',
-            'no_hp.max' => 'Nomor HP maksimal 20 karakter.',
+            'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan format nomor Indonesia (contoh: 081234567890 atau +628123456789).',
             'kata_sandi.required' => 'Kata sandi wajib diisi.',
             'kata_sandi.confirmed' => 'Konfirmasi kata sandi belum sama.',
-            'kata_sandi.min' => 'Kata sandi minimal 8 karakter.',
+            'kata_sandi.min' => 'Sandi minimal 8 karakter.',
         ]);
 
         $pengguna = Pengguna::create([

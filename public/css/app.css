@@ -81,8 +81,10 @@ img{max-width:100%;display:block}
 .store-nav a:hover:after{content:"";height:2px;background:var(--green-900);position:absolute;left:13px;right:13px;bottom:5px}
 
 .store-content{max-width:1480px;margin:0 auto;padding:0 4vw 70px}
-.toast{max-width:1480px;margin:14px auto 0;border-radius:12px;padding:11px 15px;font-size:13px;box-shadow:var(--shadow)}
 .toast.success{background:#e7f4ea;color:#285637;border:1px solid #cee5d2}
+.toast.error{background:#faeeee;color:#8c3636;border:1px solid #f2c7c7}
+input[readonly],.bg-readonly{background:#f8f6f0!important;cursor:not-allowed;color:#6b7280!important}
+.actions button:disabled,.actions .btn-disabled{opacity:.4;cursor:not-allowed;color:#999;pointer-events:auto}
 
 /* storefront hero */
 .store-hero{min-height:520px;margin:0 -4vw 0;display:grid;grid-template-columns:1.04fr .96fr;overflow:hidden;background:linear-gradient(110deg,#f7f1e7 0%,#fbf8f2 53%,#e7dfd2 53%,#e0d6c6 100%);position:relative}
@@ -844,3 +846,26 @@ body{font-size:17px}
   .footer-final-location{min-width:0}
   .footer-final-bottom{margin-top:22px;align-items:flex-start;flex-direction:column;gap:9px}
 }
+
+/* Multi Foto Produk Styles */
+.modal-media-col{display:flex;flex-direction:column;background:#f5f1ea;border-right:1px solid #ebe4d8}
+.modal-media-col .modal-image{flex:1;min-height:380px;position:relative}
+.modal-thumbnails{display:flex;gap:8px;padding:12px 16px;background:#fcfbf9;border-top:1px solid #eee7da;overflow-x:auto}
+.modal-thumbnails:empty{display:none}
+.modal-thumb-btn{width:56px;height:56px;border-radius:8px;border:2px solid transparent;padding:0;background:#eee;cursor:pointer;overflow:hidden;flex-shrink:0;transition:all .2s ease}
+.modal-thumb-btn img{width:100%;height:100%;object-fit:cover;display:block}
+.modal-thumb-btn:hover{border-color:#b9c9c0}
+.modal-thumb-btn.active{border-color:var(--green-800, #163f32);box-shadow:0 0 0 2px rgba(22,63,50,.2)}
+.multi-photo-badge{position:absolute;top:12px;left:12px;background:rgba(20,55,44,.85);backdrop-filter:blur(4px);color:#fff;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:4px;z-index:2}
+.existing-photos-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:12px;margin-top:8px}
+.existing-photo-card{position:relative;border-radius:10px;overflow:hidden;border:1px solid #ddd2c0;background:#fff;aspect-ratio:1/1;box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.existing-photo-card img{width:100%;height:100%;object-fit:cover;display:block}
+.btn-hapus-foto{position:absolute;bottom:0;left:0;right:0;background:rgba(180,35,24,.88);color:#fff;border:0;font-size:11px;font-weight:600;padding:5px 0;text-align:center;cursor:pointer;transition:background .2s}
+.thumb-badge{position:absolute;bottom:2px;right:2px;background:rgba(22,63,50,.9);color:#fff;font-size:8px;font-weight:700;padding:2px 4px;border-radius:4px;line-height:1}
+
+/* Multi Keahlian Penenun Styles */
+.keahlian-checkbox-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:10px;padding:14px;background:#fbfaf7;border:1px solid #d9d3c8;border-radius:12px}
+.keahlian-checkbox-item{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;margin:0}
+.keahlian-checkbox-item input[type="checkbox"]{width:17px;height:17px;cursor:pointer;accent-color:var(--green-900, #14372e);margin:0}
+.skill-badges{display:flex;flex-wrap:wrap;gap:4px}
+.skill-tag{display:inline-block;padding:2px 7px;background:#eef4f0;color:#1d4638;border:1px solid #d8e5df;border-radius:6px;font-size:10px;font-weight:600}

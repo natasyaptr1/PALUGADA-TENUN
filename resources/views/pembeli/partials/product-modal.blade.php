@@ -2,7 +2,10 @@
     <div class="modal-backdrop js-modal-close"></div>
     <div class="product-modal-card" role="dialog" aria-modal="true" aria-labelledby="modalProductName">
         <button class="modal-close js-modal-close" type="button" aria-label="Tutup">×</button>
-        <div class="modal-image" id="modalProductImage"><div class="fabric-placeholder"><span>PB</span></div></div>
+        <div class="modal-media-col">
+            <div class="modal-image" id="modalProductImage"><div class="fabric-placeholder"><span>PB</span></div></div>
+            <div class="modal-thumbnails" id="modalThumbnails"></div>
+        </div>
         <div class="modal-content">
             <span class="kicker" id="modalProductType">TENUN IKAT</span>
             <h2 id="modalProductName">Detail Produk</h2>
