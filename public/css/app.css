@@ -871,3 +871,19 @@ body{font-size:17px}
 .skill-tag{display:inline-block;padding:2px 7px;background:#eef4f0;color:#1d4638;border:1px solid #d8e5df;border-radius:6px;font-size:10px;font-weight:600}
 .btn-locked-delete{background:none;border:0;color:var(--danger, #b42318);opacity:.45;cursor:not-allowed;padding:0;font-size:12px;font-weight:700}
 .btn-locked-delete:hover{opacity:.75}
+
+/* Custom Pagination Styles */
+.pagination-container{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:20px;padding:12px 18px;background:#fff;border:1px solid var(--line,#e2dcd0);border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.03);flex-wrap:wrap}
+.pagination-info{font-size:12px;color:var(--muted,#5c6d64)}
+.pagination-info strong{color:var(--ink,#163026);font-weight:700}
+.pagination-nav{display:flex;align-items:center;gap:6px;list-style:none;margin:0;padding:0}
+.page-item{display:inline-block}
+.page-link{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 12px;font-size:12px;font-weight:600;color:var(--ink,#163026);background:#fbfaf7;border:1px solid #d9d3c8;border-radius:8px;text-decoration:none;transition:all .18s ease}
+.page-link:hover{background:#efeae0;border-color:#b8ada0;color:#122a21}
+.page-item.active .page-link{background:linear-gradient(135deg,#14372e,#1a4338);border-color:#14372e;color:#fff;box-shadow:0 3px 10px rgba(20,55,46,.25)}
+.page-item.disabled .page-link{opacity:.45;cursor:not-allowed;background:#f5f3ed;border-color:#e4ded4;color:#8a968f}
+@media(max-width:640px){
+  .pagination-container{flex-direction:column;align-items:flex-start}
+  .pagination-nav{flex-wrap:wrap}
+}
+

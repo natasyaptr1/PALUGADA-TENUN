@@ -17,6 +17,11 @@ class ProdukController extends Controller
 {
     public function index(Request $request): View
     {
+        $perHalaman = (int) $request->input('per_halaman', 10);
+        if ($perHalaman < 1 || $perHalaman > 100) {
+            $perHalaman = 10;
+        }
+
         $daftarProduk=Produk::query()->with(['stok', 'produkFoto', 'jenisProduk'])
             ->when($request->filled('cari'),function($query) use($request){
                 $cari=$request->string('cari')->toString();
@@ -29,7 +34,7 @@ class ProdukController extends Controller
                             $q->where('nama_jenis', 'like', "%{$cari}%");
                         });
                 });
-            })->latest()->paginate(10)->withQueryString();
+            })->latest()->paginate($perHalaman)->withQueryString();
         return view('admin.produk.index',compact('daftarProduk'));
     }
 
