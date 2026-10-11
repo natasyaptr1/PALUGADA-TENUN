@@ -164,6 +164,11 @@ class ProdukController extends Controller
 
     private function validasi(Request $request, ?int $produkId=null): array
     {
+        if ($request->has('harga') && is_string($request->input('harga'))) {
+            $rawHarga = preg_replace('/[^0-9]/', '', (string) $request->input('harga'));
+            $request->merge(['harga' => $rawHarga !== '' ? $rawHarga : null]);
+        }
+
         return $request->validate([
             'kode_produk'=>['nullable','string','max:50','unique:produk,kode_produk'.($produkId?','.$produkId:'')],
             'nama_produk'=>['required','string','max:100'],

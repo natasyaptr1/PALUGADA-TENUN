@@ -17,7 +17,10 @@
 <label>Warna<input name="warna" value="{{ old('warna', $produk->warna ?? '') }}"></label>
 <label>Ukuran<input name="ukuran" value="{{ old('ukuran', $produk->ukuran ?? '') }}"></label>
 <label>Bahan<input name="material" value="{{ old('material', $produk->material ?? '') }}"></label>
-<label>Harga<input type="number" name="harga" min="0" step="1000" value="{{ old('harga', $produk->harga ?? '') }}" required></label>
+<label>Harga (Rp)
+    <input type="text" name="harga" class="js-currency-input" inputmode="numeric" placeholder="Contoh: 500.000" value="{{ old('harga') ? number_format((float)preg_replace('/[^0-9]/', '', (string)old('harga')), 0, ',', '.') : (isset($produk->harga) ? number_format((float)$produk->harga, 0, ',', '.') : '') }}" required>
+    <small style="font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px;">Format ribuan otomatis dengan pemisah titik (contoh: 500.000).</small>
+</label>
 <label class="span-2">Foto Produk (Dapat Memilih Beberapa Foto Sekaligus)
     <input type="file" name="foto[]" multiple accept="image/jpeg,image/png,image/jpg,image/webp">
     <small style="font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px;">

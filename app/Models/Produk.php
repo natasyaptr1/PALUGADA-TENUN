@@ -29,6 +29,11 @@ class Produk extends Model {
         return ((int) ($this->stok?->jumlah_stok ?? 0)) === 0;
     }
 
+    public function getHargaFormatAttribute(): string
+    {
+        return 'Rp ' . number_format((float) ($this->harga ?? 0), 0, ',', '.');
+    }
+
     public static function generateKodeProduk(): string
     {
         $lastProduct = static::withTrashed()

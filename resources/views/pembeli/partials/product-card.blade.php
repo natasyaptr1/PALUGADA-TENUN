@@ -20,7 +20,7 @@
         <h3>{{ $produk->nama_produk }}</h3>
         <p class="product-desc">{{ $produk->motif ?: 'Motif Palugada' }} · {{ $produk->warna ?: 'Warna khas tenun' }}</p>
         <div class="product-price-row">
-            <strong>Rp {{ number_format($produk->harga,0,',','.') }}</strong>
+            <strong>{{ $produk->harga_format }}</strong>
             <span>{{ ($produk->stok?->jumlah_stok ?? 0) > 0 ? 'Tersedia '.$produk->stok->jumlah_stok : 'Belum tersedia' }}</span>
         </div>
         <div class="product-card-actions product-card-actions-single">
@@ -32,7 +32,7 @@
                 data-color="{{ $produk->warna }}"
                 data-size="{{ $produk->ukuran }}"
                 data-material="{{ $produk->material }}"
-                data-price="Rp {{ number_format($produk->harga,0,',','.') }}"
+                data-price="{{ $produk->harga_format }}"
                 data-stock="{{ $produk->stok?->jumlah_stok ?? 0 }}"
                 data-image="{{ $fotoUtama }}"
                 data-images="{{ $jsonFoto }}">Lihat Detail</button>

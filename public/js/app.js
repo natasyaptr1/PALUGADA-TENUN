@@ -11,7 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
       setText('modalProductName', button.dataset.name, 'Detail Produk');
       setText('modalProductCode', button.dataset.code ? `Kode produk: ${button.dataset.code}` : '');
       setText('modalProductType', button.dataset.type || 'TENUN IKAT');
-      setText('modalProductPrice', button.dataset.price, 'Rp 0');
+      let rawPrice = button.dataset.price || '0';
+      if (!rawPrice.startsWith('Rp')) {
+        let cleanDigits = rawPrice.replace(/[^0-9]/g, '');
+        let num = cleanDigits ? parseInt(cleanDigits, 10) : 0;
+        rawPrice = 'Rp ' + new Intl.NumberFormat('id-ID').format(num);
+      }
+      setText('modalProductPrice', rawPrice, 'Rp 0');
       setText('modalMotif', button.dataset.motif);
       setText('modalColor', button.dataset.color);
       setText('modalSize', button.dataset.size);
@@ -112,6 +118,17 @@ document.addEventListener('DOMContentLoaded', () => {
             field.value = '';
           }
         });
+      }
+    });
+  });
+
+  document.querySelectorAll('.js-currency-input').forEach((input) => {
+    input.addEventListener('input', () => {
+      let digits = input.value.replace(/[^0-9]/g, '');
+      if (digits) {
+        input.value = new Intl.NumberFormat('id-ID').format(parseInt(digits, 10));
+      } else {
+        input.value = '';
       }
     });
   });
