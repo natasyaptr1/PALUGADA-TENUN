@@ -142,6 +142,7 @@ class ProdukController extends Controller
 
     public function destroy(Produk $produk): RedirectResponse
     {
+        $produk->loadMissing('stok');
         $jumlahStok = (int) ($produk->stok?->jumlah_stok ?? 0);
         if ($jumlahStok > 0) {
             return redirect()->route('admin.produk.index')->with('error', 'Produk tidak dapat dihapus karena stok masih tersedia.');
@@ -156,6 +157,7 @@ class ProdukController extends Controller
         }
 
         $produk->produkFoto()->delete();
+        $produk->stok()->delete();
         $produk->delete();
         return redirect()->route('admin.produk.index')->with('success','Produk berhasil dihapus.');
     }

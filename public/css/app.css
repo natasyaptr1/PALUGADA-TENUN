@@ -869,3 +869,5 @@ body{font-size:17px}
 .keahlian-checkbox-item input[type="checkbox"]{width:17px;height:17px;cursor:pointer;accent-color:var(--green-900, #14372e);margin:0}
 .skill-badges{display:flex;flex-wrap:wrap;gap:4px}
 .skill-tag{display:inline-block;padding:2px 7px;background:#eef4f0;color:#1d4638;border:1px solid #d8e5df;border-radius:6px;font-size:10px;font-weight:600}
+.btn-locked-delete{background:none;border:0;color:var(--danger, #b42318);opacity:.45;cursor:not-allowed;padding:0;font-size:12px;font-weight:700}
+.btn-locked-delete:hover{opacity:.75}

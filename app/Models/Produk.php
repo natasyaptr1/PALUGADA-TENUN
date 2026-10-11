@@ -24,6 +24,11 @@ class Produk extends Model {
         return $daftar;
     }
 
+    public function bisaDihapus(): bool
+    {
+        return ((int) ($this->stok?->jumlah_stok ?? 0)) === 0;
+    }
+
     public static function generateKodeProduk(): string
     {
         $lastProduct = static::withTrashed()
