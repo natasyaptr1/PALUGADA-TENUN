@@ -10,7 +10,14 @@ use Illuminate\Support\Facades\Storage;
 class ProdukController extends Controller {
     public function index(Request $request): JsonResponse {
         $daftar=Produk::with('stok')->where('status','aktif')
-            ->when($request->filled('cari'),fn($q)=>$q->where('nama_produk','like','%'.$request->cari.'%'))
+           ->when($request->filled('cari'), function ($q) use ($request) {
+                $term = $request->input('cari');
+                $q->where(function ($inner) use ($term) {
+                    foreach (['nama_produk','kode_produk','jenis','motif','warna'] as $column) {
+                        $inner->orWhere($column, 'like', '%' . $term . '%');
+                    }
+                });
+            })
             ->paginate(min(max((int)$request->input('per_halaman',12),1),50));
         return response()->json(['data'=>$daftar->items(),'meta'=>['halaman_sekarang'=>$daftar->currentPage(),'per_halaman'=>$daftar->perPage(),'total'=>$daftar->total(),'halaman_terakhir'=>$daftar->lastPage()]]);
     }
