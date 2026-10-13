@@ -32,6 +32,7 @@
             <nav class="admin-nav" aria-label="Menu admin">
                 <a href="{{ route('admin.beranda') }}" class="nav-link {{ request()->routeIs('admin.beranda') ? 'active' : '' }}"><span class="nav-dot"></span><span>Beranda</span></a>
                 <a href="{{ route('admin.produk.index') }}" class="nav-link {{ request()->routeIs('admin.produk.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Produk</span></a>
+                <a href="{{ route('admin.jenis-produk.index') }}" class="nav-link {{ request()->routeIs('admin.jenis-produk.*', 'admin.jenis_produk.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Jenis Produk</span></a>
                 <a href="{{ route('admin.stok') }}" class="nav-link {{ request()->routeIs('admin.stok') ? 'active' : '' }}"><span class="nav-dot"></span><span>Stok</span></a>
                 <a href="{{ route('admin.penenun.index') }}" class="nav-link {{ request()->routeIs('admin.penenun.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Data Penenun</span></a>
                 <a href="{{ route('admin.target-produksi') }}" class="nav-link {{ request()->routeIs('admin.target-produksi') ? 'active' : '' }}"><span class="nav-dot"></span><span>Target Produksi</span></a>

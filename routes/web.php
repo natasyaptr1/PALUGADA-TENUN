@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BerandaController;
+use App\Http\Controllers\Admin\JenisProdukController;
 use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
 use App\Http\Controllers\AutentikasiController;
@@ -86,6 +87,8 @@ Route::middleware(['auth', 'peran:admin'])->prefix('admin')->name('admin.')->gro
 
     Route::resource('produk', ProdukController::class)->except(['show']);
     Route::delete('produk/{produk}/foto/{foto}', [ProdukController::class, 'destroyFoto'])->name('produk.foto.destroy');
+    Route::resource('jenis-produk', JenisProdukController::class)->parameters(['jenis-produk' => 'jenisProduk'])->except(['show']);
+    Route::resource('jenis_produk', JenisProdukController::class)->parameters(['jenis_produk' => 'jenisProduk'])->names('jenis_produk')->except(['show']);
     Route::resource('penenun', PenenunController::class)->except(['show']);
 
     Route::view('/stok', 'admin.placeholder', [
