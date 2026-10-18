@@ -8,6 +8,7 @@ use App\Models\Produk;
 use App\Models\TargetProduksi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -18,6 +19,16 @@ class TargetProduksiController extends Controller
     {
         $cari = trim((string) $request->input('cari'));
         $status = $request->input('status');
+        $today = Carbon::today('Asia/Jakarta')->toDateString();
+
+        $ringkasan = TargetProduksi::query()
+            ->selectRaw("
+                COUNT(CASE WHEN status = 'berjalan' THEN 1 END) as total_berjalan,
+                COUNT(CASE WHEN status = 'selesai' THEN 1 END) as total_selesai,
+                COUNT(CASE WHEN status = 'dibatalkan' THEN 1 END) as total_dibatalkan,
+                COUNT(CASE WHEN status = 'berjalan' AND tanggal_deadline IS NOT NULL AND tanggal_deadline < ? THEN 1 END) as total_terlambat
+            ", [$today])
+            ->first();
 
         $daftarTarget = TargetProduksi::query()
             ->with([
@@ -32,6 +43,11 @@ class TargetProduksiController extends Controller
                 },
             ])
             ->withSum('hasilProduksi', 'jumlah_selesai')
+            ->when($status === 'terlambat', function ($query) use ($today) {
+                $query->where('status', 'berjalan')
+                    ->whereNotNull('tanggal_deadline')
+                    ->where('tanggal_deadline', '<', $today);
+            })
             ->when($status && in_array($status, ['berjalan', 'selesai', 'dibatalkan'], true), function ($query) use ($status) {
                 $query->where('status', $status);
             })
@@ -49,7 +65,24 @@ class TargetProduksiController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('admin.target_produksi.index', compact('daftarTarget'));
+        return view('admin.target_produksi.index', compact('daftarTarget', 'ringkasan'));
+    }
+
+    public function show(TargetProduksi $targetProduksi): View
+    {
+        $targetProduksi->load([
+            'produk',
+            'penenun.profilPenenun.daftarKeahlian',
+        ]);
+        $targetProduksi->loadSum('hasilProduksi', 'jumlah_selesai');
+
+        $riwayatHasil = $targetProduksi->hasilProduksi()
+            ->latest('tanggal_input')
+            ->latest('id')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('admin.target_produksi.show', compact('targetProduksi', 'riwayatHasil'));
     }
 
     public function create(): View

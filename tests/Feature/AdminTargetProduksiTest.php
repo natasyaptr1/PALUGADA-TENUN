@@ -957,4 +957,360 @@ class AdminTargetProduksiTest extends TestCase
         $target->refresh();
         $this->assertEquals('berjalan', $target->status);
     }
+
+    public function test_admin_melihat_halaman_detail_dan_datanya_benar(): void
+    {
+        $deadline = Carbon::today()->addDays(15);
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 50,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => $deadline->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 15,
+            'tanggal_input' => Carbon::now()->subDays(2),
+            'catatan' => 'Selesai tahap motif utama',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $target));
+
+        $response->assertOk();
+        $response->assertSee('Detail Target Produksi');
+        $response->assertSee('Kain Tenun Troso Masterpiece');
+        $response->assertSee('Siti Rohani');
+        $response->assertSee('PRD-001');
+        $response->assertSee('PNN-001');
+        $response->assertSee('50');
+        $response->assertSee('15');
+        $response->assertSee('35');
+        $response->assertSee('30%');
+        $response->assertSee($deadline->translatedFormat('d M Y'));
+        $response->assertSee('Selesai tahap motif utama');
+    }
+
+    public function test_persen_dan_sisa_dihitung_benar(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 4,
+            'tanggal_input' => Carbon::now(),
+            'catatan' => null,
+        ]);
+
+        $this->assertEquals(4, $target->totalSelesai());
+        $this->assertEquals(6, $target->sisaTarget());
+        $this->assertEquals(40, $target->persenProgres());
+    }
+
+    public function test_persen_dibatasi_100_jika_hasil_melebihi_target(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 12,
+            'tanggal_input' => Carbon::now(),
+            'catatan' => 'Bonus produksi ekstra',
+        ]);
+
+        $this->assertEquals(12, $target->totalSelesai());
+        $this->assertEquals(0, $target->sisaTarget());
+        $this->assertEquals(100, $target->persenProgres());
+    }
+
+    public function test_riwayat_hasil_produksi_tampil_terbaru_dulu(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $hasilLama = HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 3,
+            'tanggal_input' => Carbon::now()->subDays(5),
+            'catatan' => 'Catatan hasil lama',
+        ]);
+
+        $hasilBaru = HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 5,
+            'tanggal_input' => Carbon::now()->subDay(),
+            'catatan' => 'Catatan hasil baru',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $target));
+
+        $response->assertOk();
+        $response->assertSeeInOrder([
+            'Catatan hasil baru',
+            'Catatan hasil lama',
+        ]);
+    }
+
+    public function test_riwayat_kosong_menampilkan_empty_state(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $target));
+
+        $response->assertOk();
+        $response->assertSee('Belum ada hasil produksi yang dicatat.');
+    }
+
+    public function test_terlambat_benar_jika_berjalan_dan_batas_waktu_kemarin(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->subDays(3)->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $this->assertTrue($target->sedangTerlambat());
+        $this->assertEquals(3, $target->hariTerlambat());
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $target));
+
+        $response->assertOk();
+        $response->assertSee('Terlambat 3 hari');
+    }
+
+    public function test_batas_waktu_hari_ini_belum_terlambat(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $this->assertFalse($target->sedangTerlambat());
+        $this->assertEquals(0, $target->hariTerlambat());
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $target));
+
+        $response->assertOk();
+        $response->assertDontSee('Terlambat');
+    }
+
+    public function test_batas_waktu_kosong_tidak_terlambat(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => null,
+            'status' => 'berjalan',
+        ]);
+
+        $this->assertFalse($target->sedangTerlambat());
+        $this->assertEquals(0, $target->hariTerlambat());
+    }
+
+    public function test_target_dibatalkan_atau_selesai_dengan_batas_waktu_lewat_tidak_terlambat(): void
+    {
+        $targetSelesai = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->subDays(2)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        $targetDibatalkan = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->subDays(2)->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        $this->assertFalse($targetSelesai->sedangTerlambat());
+        $this->assertEquals(0, $targetSelesai->hariTerlambat());
+        $this->assertFalse($targetDibatalkan->sedangTerlambat());
+        $this->assertEquals(0, $targetDibatalkan->hariTerlambat());
+    }
+
+    public function test_filter_terlambat_hanya_menampilkan_target_yang_benar(): void
+    {
+        $produkTerlambat = Produk::create([
+            'kode_produk' => 'PRD-LATE',
+            'nama_produk' => 'Kain Terlambat Sekali',
+            'jenis' => 'Tenun',
+            'harga' => 200000,
+            'status' => 'aktif',
+        ]);
+
+        $targetTerlambat = TargetProduksi::create([
+            'produk_id' => $produkTerlambat->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->subDay()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $targetTepatWaktu = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => Carbon::today()->addDays(5)->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.index', ['status' => 'terlambat']));
+
+        $response->assertOk();
+        $response->assertSee('Kain Terlambat Sekali');
+        $response->assertDontSee('Kain Tenun Troso Masterpiece');
+    }
+
+    public function test_kartu_ringkasan_menghitung_semua_target_tidak_terpengaruh_filter_atau_pagination(): void
+    {
+        TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => Carbon::today()->addDays(5)->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(5)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->subDay()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.index', ['status' => 'dibatalkan']));
+
+        $response->assertOk();
+        $response->assertSee('Berjalan');
+        $response->assertSee('Selesai');
+        $response->assertSee('Dibatalkan');
+        $response->assertSee('Terlambat');
+    }
+
+    public function test_tombol_ubah_dan_batalkan_di_halaman_detail_hanya_tampil_untuk_status_berjalan(): void
+    {
+        $targetBerjalan = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $targetSelesai = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(5)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        $responseBerjalan = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $targetBerjalan));
+
+        $responseBerjalan->assertOk();
+        $responseBerjalan->assertSee(route('admin.target-produksi.edit', $targetBerjalan));
+        $responseBerjalan->assertSee('Batalkan');
+
+        $responseSelesai = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', $targetSelesai));
+
+        $responseSelesai->assertOk();
+        $responseSelesai->assertDontSee(route('admin.target-produksi.edit', $targetSelesai));
+        $responseSelesai->assertDontSee('Batalkan');
+    }
+
+    public function test_id_tidak_ada_mengembalikan_404(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.show', 999999));
+
+        $response->assertNotFound();
+    }
+
+    public function test_pembeli_dan_penenun_tidak_bisa_mengakses_halaman_detail(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $responsePembeli = $this->actingAs($this->pembeli)
+            ->get(route('admin.target-produksi.show', $target));
+        $responsePembeli->assertForbidden();
+
+        $responsePenenun = $this->actingAs($this->penenun)
+            ->get(route('admin.target-produksi.show', $target));
+        $responsePenenun->assertForbidden();
+    }
 }
