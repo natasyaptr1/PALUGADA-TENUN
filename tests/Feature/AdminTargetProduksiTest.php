@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\HasilProduksi;
 use App\Models\Pengguna;
 use App\Models\Produk;
 use App\Models\ProfilPenenun;
@@ -411,5 +412,316 @@ class AdminTargetProduksiTest extends TestCase
                 'tanggal_mulai' => Carbon::today()->toDateString(),
             ]);
         $responseStore->assertForbidden();
+    }
+
+    public function test_admin_melihat_halaman_ubah(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.target-produksi.edit', $target));
+
+        $response->assertOk();
+        $response->assertSee('Ubah Target Produksi');
+        $response->assertSee('PRODUKSI');
+        $response->assertSee('Simpan Perubahan');
+        $response->assertSee($this->produk->nama_produk);
+    }
+
+    public function test_ubah_target_berjalan_berhasil(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $tanggalDeadline = Carbon::today()->addDays(30)->toDateString();
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 35,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'tanggal_deadline' => $tanggalDeadline,
+        ]);
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('success', 'Target produksi berhasil diperbarui.');
+
+        $target->refresh();
+        $this->assertEquals(35, $target->jumlah_target);
+        $this->assertEquals($tanggalDeadline, $target->tanggal_deadline->toDateString());
+    }
+
+    public function test_target_selesai_ditolak(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        $responseEdit = $this->actingAs($this->admin)->get(route('admin.target-produksi.edit', $target));
+        $responseEdit->assertRedirect(route('admin.target-produksi.index'));
+        $responseEdit->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat diubah.');
+
+        $responseUpdate = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'jumlah_target' => 50,
+        ]);
+        $responseUpdate->assertRedirect(route('admin.target-produksi.index'));
+        $responseUpdate->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat diubah.');
+    }
+
+    public function test_target_dibatalkan_ditolak(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        $responseEdit = $this->actingAs($this->admin)->get(route('admin.target-produksi.edit', $target));
+        $responseEdit->assertRedirect(route('admin.target-produksi.index'));
+        $responseEdit->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat diubah.');
+
+        $responseUpdate = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'jumlah_target' => 30,
+        ]);
+        $responseUpdate->assertRedirect(route('admin.target-produksi.index'));
+        $responseUpdate->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat diubah.');
+    }
+
+    public function test_jumlah_target_di_bawah_total_hasil_ditolak(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 10,
+            'tanggal_input' => Carbon::now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'jumlah_target' => 9,
+        ]);
+
+        $response->assertSessionHasErrors(['jumlah_target']);
+        $this->assertEquals(
+            'Jumlah target tidak boleh lebih kecil dari hasil produksi yang sudah masuk (10).',
+            session('errors')->first('jumlah_target')
+        );
+    }
+
+    public function test_jumlah_target_sama_dengan_total_hasil_diterima(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 10,
+            'tanggal_input' => Carbon::now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'jumlah_target' => 10,
+        ]);
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('success', 'Target produksi berhasil diperbarui.');
+
+        $target->refresh();
+        $this->assertEquals(10, $target->jumlah_target);
+    }
+
+    public function test_produk_dan_penenun_diabaikan_jika_sudah_ada_hasil(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 5,
+            'tanggal_input' => Carbon::now(),
+        ]);
+
+        $produkB = Produk::create([
+            'kode_produk' => 'PRD-002',
+            'nama_produk' => 'Kain Sutra Asli',
+            'jenis' => 'Sutra',
+            'harga' => 500000,
+            'status' => 'aktif',
+        ]);
+
+        $penenunB = Pengguna::factory()->create([
+            'peran' => 'penenun',
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $produkB->id,
+            'penenun_id' => $penenunB->id,
+            'jumlah_target' => 25,
+        ]);
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('success');
+
+        $target->refresh();
+        $this->assertEquals($this->produk->id, $target->produk_id);
+        $this->assertEquals($this->penenun->id, $target->penenun_id);
+        $this->assertEquals(25, $target->jumlah_target);
+    }
+
+    public function test_produk_bisa_diganti_jika_belum_ada_hasil(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $produkB = Produk::create([
+            'kode_produk' => 'PRD-003',
+            'nama_produk' => 'Kain Songket Baru',
+            'jenis' => 'Songket',
+            'harga' => 600000,
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $produkB->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+        ]);
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('success');
+
+        $target->refresh();
+        $this->assertEquals($produkB->id, $target->produk_id);
+    }
+
+    public function test_tanggal_mulai_lama_yang_tidak_diubah_tidak_ditolak(): void
+    {
+        $tanggalMulaiLama = Carbon::today()->subDays(7)->toDateString();
+
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => $tanggalMulaiLama,
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 30,
+            'tanggal_mulai' => $tanggalMulaiLama,
+        ]);
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHasNoErrors();
+
+        $target->refresh();
+        $this->assertEquals(30, $target->jumlah_target);
+    }
+
+    public function test_tanggal_mulai_diubah_ke_kemarin_ditolak(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::yesterday()->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors(['tanggal_mulai']);
+        $this->assertEquals(
+            'Tanggal mulai tidak boleh sebelum hari ini.',
+            session('errors')->first('tanggal_mulai')
+        );
+    }
+
+    public function test_batas_waktu_sebelum_tanggal_mulai_ditolak_pada_update(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->addDays(5)->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.target-produksi.update', $target), [
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->addDays(5)->toDateString(),
+            'tanggal_deadline' => Carbon::today()->addDays(2)->toDateString(),
+        ]);
+
+        $response->assertSessionHasErrors(['tanggal_deadline']);
+    }
+
+    public function test_pembeli_tidak_bisa_mengakses_halaman_ubah(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $responseEdit = $this->actingAs($this->pembeli)
+            ->get(route('admin.target-produksi.edit', $target));
+        $responseEdit->assertForbidden();
+
+        $responseUpdate = $this->actingAs($this->pembeli)
+            ->put(route('admin.target-produksi.update', $target), [
+                'jumlah_target' => 25,
+            ]);
+        $responseUpdate->assertForbidden();
     }
 }

@@ -35,6 +35,7 @@
                 <th style="text-align: center;">Selesai</th>
                 <th>Batas Waktu</th>
                 <th style="text-align: center; width: 120px;">Status</th>
+                <th style="width: 100px; text-align: right;">Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -69,10 +70,17 @@
                         {{ ucfirst($item->status) }}
                     </span>
                 </td>
+                <td class="actions" style="justify-content: flex-end;">
+                    @if($item->status === 'berjalan')
+                        <a href="{{ route('admin.target-produksi.edit', $item) }}">Ubah</a>
+                    @else
+                        <span style="color: var(--muted); font-size: 11px;">Terkunci</span>
+                    @endif
+                </td>
             </tr>
         @empty
             <tr>
-                <td colspan="7" class="empty">Belum ada target produksi.</td>
+                <td colspan="8" class="empty">Belum ada target produksi.</td>
             </tr>
         @endforelse
         </tbody>
