@@ -6,6 +6,7 @@ use App\Models\HasilProduksi;
 use App\Models\Pengguna;
 use App\Models\Produk;
 use App\Models\ProfilPenenun;
+use App\Models\Stok;
 use App\Models\TargetProduksi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -75,7 +76,7 @@ class AdminTargetProduksiTest extends TestCase
         $response->assertSee('Kain Tenun Troso Masterpiece');
         $response->assertSee('Siti Rohani');
         $response->assertSee('0 / 20');
-        $response->assertSee($deadline->format('d M Y'));
+        $response->assertSee($deadline->translatedFormat('d M Y'));
         $response->assertSee('Berjalan');
     }
 
@@ -723,5 +724,237 @@ class AdminTargetProduksiTest extends TestCase
                 'jumlah_target' => 25,
             ]);
         $responseUpdate->assertForbidden();
+    }
+
+    public function test_admin_membatalkan_target_berjalan(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('success', 'Target produksi berhasil dibatalkan.');
+
+        $target->refresh();
+        $this->assertEquals('dibatalkan', $target->status);
+        $this->assertDatabaseHas('target_produksi', [
+            'id' => $target->id,
+            'status' => 'dibatalkan',
+        ]);
+    }
+
+    public function test_pembatalan_tidak_menghapus_hasil_produksi_yang_sudah_ada(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 3,
+            'tanggal_input' => Carbon::now(),
+        ]);
+
+        HasilProduksi::create([
+            'target_produksi_id' => $target->id,
+            'jumlah_selesai' => 4,
+            'tanggal_input' => Carbon::now(),
+        ]);
+
+        $jumlahAwal = HasilProduksi::where('target_produksi_id', $target->id)->count();
+        $this->assertEquals(2, $jumlahAwal);
+
+        $response = $this->actingAs($this->admin)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+
+        $jumlahAkhir = HasilProduksi::where('target_produksi_id', $target->id)->count();
+        $this->assertEquals(2, $jumlahAkhir);
+        $this->assertEquals(7, (int) HasilProduksi::where('target_produksi_id', $target->id)->sum('jumlah_selesai'));
+    }
+
+    public function test_pembatalan_tidak_mengubah_jumlah_stok_produk(): void
+    {
+        $stok = Stok::create([
+            'produk_id' => $this->produk->id,
+            'jumlah_stok' => 15,
+        ]);
+
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+
+        $stok->refresh();
+        $this->assertEquals(15, $stok->jumlah_stok);
+    }
+
+    public function test_target_selesai_tidak_bisa_dibatalkan(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->subDays(10)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat dibatalkan.');
+
+        $target->refresh();
+        $this->assertEquals('selesai', $target->status);
+    }
+
+    public function test_target_yang_sudah_dibatalkan_tidak_bisa_dibatalkan_lagi(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertRedirect(route('admin.target-produksi.index'));
+        $response->assertSessionHas('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat dibatalkan.');
+
+        $target->refresh();
+        $this->assertEquals('dibatalkan', $target->status);
+    }
+
+    public function test_tombol_batalkan_hanya_tampil_untuk_target_berjalan_di_halaman_index(): void
+    {
+        $targetBerjalan = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $targetSelesai = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->subDays(5)->toDateString(),
+            'status' => 'selesai',
+        ]);
+
+        $targetDibatalkan = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.target-produksi.batalkan', $targetBerjalan));
+        $response->assertDontSee(route('admin.target-produksi.batalkan', $targetSelesai));
+        $response->assertDontSee(route('admin.target-produksi.batalkan', $targetDibatalkan));
+        $response->assertSee('Batalkan');
+        $response->assertSee('Terkunci');
+    }
+
+    public function test_filter_status_dibatalkan_menampilkan_target_yang_benar(): void
+    {
+        $produkBatalkan = Produk::create([
+            'kode_produk' => 'PRD-BATAL',
+            'nama_produk' => 'Kain Khusus Batal',
+            'jenis' => 'Tenun',
+            'harga' => 200000,
+            'status' => 'aktif',
+        ]);
+
+        TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        TargetProduksi::create([
+            'produk_id' => $produkBatalkan->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 10,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'dibatalkan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.index', ['status' => 'dibatalkan']));
+
+        $response->assertOk();
+        $response->assertSee('Kain Khusus Batal');
+        $response->assertDontSee('Kain Tenun Troso Masterpiece');
+    }
+
+    public function test_akses_get_ke_url_batalkan_ditolak(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.target-produksi.batalkan', $target));
+
+        $response->assertMethodNotAllowed();
+    }
+
+    public function test_pembeli_dan_penenun_tidak_bisa_membatalkan(): void
+    {
+        $target = TargetProduksi::create([
+            'produk_id' => $this->produk->id,
+            'penenun_id' => $this->penenun->id,
+            'jumlah_target' => 20,
+            'tanggal_mulai' => Carbon::today()->toDateString(),
+            'status' => 'berjalan',
+        ]);
+
+        $responsePembeli = $this->actingAs($this->pembeli)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+        $responsePembeli->assertForbidden();
+
+        $responsePenenun = $this->actingAs($this->penenun)
+            ->patch(route('admin.target-produksi.batalkan', $target));
+        $responsePenenun->assertForbidden();
+
+        $target->refresh();
+        $this->assertEquals('berjalan', $target->status);
     }
 }

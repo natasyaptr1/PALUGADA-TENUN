@@ -99,6 +99,8 @@ Route::middleware(['auth', 'peran:admin'])->prefix('admin')->name('admin.')->gro
     Route::resource('target-produksi', TargetProduksiController::class)
         ->parameters(['target-produksi' => 'targetProduksi'])
         ->only(['index', 'create', 'store', 'edit', 'update']);
+    Route::patch('target-produksi/{targetProduksi}/batalkan', [TargetProduksiController::class, 'batalkan'])
+        ->name('target-produksi.batalkan');
     Route::view('/pesanan', 'admin.placeholder', [
         'judul' => 'Pesanan',
         'deskripsi' => 'Pesanan pembeli akan tampil di sini setelah fitur pemesanan mulai digunakan.',

@@ -35,7 +35,7 @@
                 <th style="text-align: center;">Selesai</th>
                 <th>Batas Waktu</th>
                 <th style="text-align: center; width: 120px;">Status</th>
-                <th style="width: 100px; text-align: right;">Aksi</th>
+                <th style="width: 140px; text-align: right;">Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -63,19 +63,33 @@
                     </span>
                 </td>
                 <td>
-                    {{ $item->tanggal_deadline ? $item->tanggal_deadline->format('d M Y') : '-' }}
+                    {{ $item->tanggal_deadline ? $item->tanggal_deadline->translatedFormat('d M Y') : '-' }}
                 </td>
                 <td style="text-align: center;">
                     <span class="badge status-{{ $item->status }}">
                         {{ ucfirst($item->status) }}
                     </span>
                 </td>
-                <td class="actions" style="justify-content: flex-end;">
-                    @if($item->status === 'berjalan')
-                        <a href="{{ route('admin.target-produksi.edit', $item) }}">Ubah</a>
-                    @else
-                        <span style="color: var(--muted); font-size: 11px;">Terkunci</span>
-                    @endif
+                <td style="text-align: right; white-space: nowrap;">
+                    <div class="actions actions-kanan">
+                        @if($item->status === 'berjalan')
+                            <a href="{{ route('admin.target-produksi.edit', $item) }}">Ubah</a>
+                            @php
+                                $selesaiCount = (int) ($item->hasil_produksi_sum_jumlah_selesai ?? 0);
+                                $pesanKonfirmasi = "Batalkan target produksi {$item->produk?->nama_produk} untuk {$item->penenun?->nama}?";
+                                if ($selesaiCount > 0) {
+                                    $pesanKonfirmasi .= " Hasil produksi yang sudah tercatat ({$selesaiCount}) tetap masuk stok.";
+                                }
+                            @endphp
+                            <form method="POST" action="{{ route('admin.target-produksi.batalkan', $item) }}" style="display:inline;">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" onclick="return confirm('{{ addslashes($pesanKonfirmasi) }}')">Batalkan</button>
+                            </form>
+                        @else
+                            <span style="color: var(--muted); font-size: 11px;">Terkunci</span>
+                        @endif
+                    </div>
                 </td>
             </tr>
         @empty

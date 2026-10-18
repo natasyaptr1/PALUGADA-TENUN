@@ -8,6 +8,7 @@ use App\Models\Produk;
 use App\Models\TargetProduksi;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -236,6 +237,41 @@ class TargetProduksiController extends Controller
             return back()
                 ->withInput()
                 ->with('error', 'Gagal memperbarui target produksi: ' . $e->getMessage());
+        }
+    }
+
+    public function batalkan(TargetProduksi $targetProduksi): RedirectResponse
+    {
+        if ($targetProduksi->status !== 'berjalan') {
+            return redirect()
+                ->route('admin.target-produksi.index')
+                ->with('error', 'Target produksi yang sudah selesai atau dibatalkan tidak dapat dibatalkan.');
+        }
+
+        try {
+            DB::transaction(function () use ($targetProduksi) {
+                $target = TargetProduksi::where('id', $targetProduksi->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($target->status !== 'berjalan') {
+                    throw new \DomainException('Target produksi yang sudah selesai atau dibatalkan tidak dapat dibatalkan.');
+                }
+
+                $target->update(['status' => 'dibatalkan']);
+            });
+
+            return redirect()
+                ->route('admin.target-produksi.index')
+                ->with('success', 'Target produksi berhasil dibatalkan.');
+        } catch (\DomainException $e) {
+            return redirect()
+                ->route('admin.target-produksi.index')
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('admin.target-produksi.index')
+                ->with('error', 'Gagal membatalkan target produksi: ' . $e->getMessage());
         }
     }
 
