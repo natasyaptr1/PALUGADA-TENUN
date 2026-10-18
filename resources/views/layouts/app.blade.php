@@ -35,7 +35,7 @@
                 <a href="{{ route('admin.jenis-produk.index') }}" class="nav-link {{ request()->routeIs('admin.jenis-produk.*', 'admin.jenis_produk.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Jenis Produk</span></a>
                 <a href="{{ route('admin.stok') }}" class="nav-link {{ request()->routeIs('admin.stok') ? 'active' : '' }}"><span class="nav-dot"></span><span>Stok</span></a>
                 <a href="{{ route('admin.penenun.index') }}" class="nav-link {{ request()->routeIs('admin.penenun.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Data Penenun</span></a>
-                <a href="{{ route('admin.target-produksi') }}" class="nav-link {{ request()->routeIs('admin.target-produksi') ? 'active' : '' }}"><span class="nav-dot"></span><span>Target Produksi</span></a>
+                <a href="{{ route('admin.target-produksi.index') }}" class="nav-link {{ request()->routeIs('admin.target-produksi.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Target Produksi</span></a>
                 <a href="{{ route('admin.pesanan') }}" class="nav-link {{ request()->routeIs('admin.pesanan') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pesanan</span></a>
                 <a href="{{ route('admin.pembayaran') }}" class="nav-link {{ request()->routeIs('admin.pembayaran') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pembayaran</span></a>
                 <a href="{{ route('admin.laporan') }}" class="nav-link {{ request()->routeIs('admin.laporan') ? 'active' : '' }}"><span class="nav-dot"></span><span>Laporan</span></a>

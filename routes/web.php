@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BerandaController;
 use App\Http\Controllers\Admin\JenisProdukController;
 use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
+use App\Http\Controllers\Admin\TargetProduksiController;
 use App\Http\Controllers\AutentikasiController;
 use App\Http\Controllers\Pembeli\AkunController;
 use App\Models\Produk;
@@ -95,10 +96,9 @@ Route::middleware(['auth', 'peran:admin'])->prefix('admin')->name('admin.')->gro
         'judul' => 'Stok',
         'deskripsi' => 'Jumlah barang yang siap dijual akan tampil di sini setelah alur stok mulai digunakan.',
     ])->name('stok');
-    Route::view('/target-produksi', 'admin.placeholder', [
-        'judul' => 'Target Produksi',
-        'deskripsi' => 'Rencana produksi yang diberikan kepada penenun akan tampil di sini.',
-    ])->name('target-produksi');
+    Route::resource('target-produksi', TargetProduksiController::class)
+        ->parameters(['target-produksi' => 'targetProduksi'])
+        ->only(['index', 'create', 'store']);
     Route::view('/pesanan', 'admin.placeholder', [
         'judul' => 'Pesanan',
         'deskripsi' => 'Pesanan pembeli akan tampil di sini setelah fitur pemesanan mulai digunakan.',
