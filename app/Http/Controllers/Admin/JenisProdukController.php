@@ -23,7 +23,7 @@ class JenisProdukController extends Controller
                 });
             })
             ->orderBy('nama_jenis')
-            ->paginate(10)
+            ->paginate(7)
             ->withQueryString();
 
         return view('admin.jenis_produk.index', compact('daftarJenisProduk'));

@@ -16,15 +16,28 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+  int _versiBeranda = 0;
+  int _versiRiwayat = 0;
 
-  void _pilih(int value) => setState(() => _index = value);
+  void _pilih(int value) {
+    setState(() {
+      // Muat ulang data Beranda/Riwayat ketika tab tersebut dibuka.
+      if (value == 0 && _index != 0) _versiBeranda++;
+      if (value == 2 && _index != 2) _versiRiwayat++;
+      _index = value;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(pengguna: widget.pengguna, onBukaTarget: () => _pilih(1)),
+      HomeScreen(
+        key: ValueKey('beranda-$_versiBeranda'),
+        pengguna: widget.pengguna,
+        onBukaTarget: () => _pilih(1),
+      ),
       const TargetScreen(),
-      const HistoryScreen(),
+      HistoryScreen(key: ValueKey('riwayat-$_versiRiwayat')),
       ProfileScreen(pengguna: widget.pengguna),
     ];
 

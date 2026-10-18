@@ -7,7 +7,6 @@
         <h1>Selamat datang, {{ auth()->user()->nama }}</h1>
         <p>Ringkasan kondisi usaha yang perlu dilihat hari ini.</p>
     </div>
-    <a class="btn btn-primary" href="{{ route('admin.produk.create') }}">Tambah Produk</a>
 </section>
 
 <section class="admin-stat-grid admin-stat-grid-v4" aria-label="Ringkasan usaha">

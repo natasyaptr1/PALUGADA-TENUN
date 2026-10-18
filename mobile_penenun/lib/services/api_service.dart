@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:convert';
 import 'dart:io';
 
@@ -129,6 +130,52 @@ class ApiService {
       return pengguna;
     } catch (_) {
       return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> daftarTarget() async => _daftar('penenun/target');
+
+  Future<List<Map<String, dynamic>>> daftarHasil() async => _daftar('penenun/riwayat');
+
+  Future<List<Map<String, dynamic>>> _daftar(String endpoint) async {
+    final token = await tokenTersimpan();
+    if (token == null) throw const ApiException('Silakan masuk kembali.');
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/$endpoint'),
+        headers: _headers(token: token),
+      ).timeout(ApiConfig.timeout);
+      final decoded = _decode(response.body);
+      if (response.statusCode != 200) {
+        throw ApiException(_pesanDari(decoded, 'Gagal memuat data produksi.'));
+      }
+      final raw = decoded['data'];
+      if (raw is! List) return [];
+      return raw.whereType<Map<String, dynamic>>().toList();
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('Tidak dapat memuat data. Periksa koneksi server.');
+    }
+  }
+
+  Future<void> catatHasil({required int targetId, required int jumlah, String? catatan, String? requestId}) async {
+    final token = await tokenTersimpan();
+    if (token == null) throw const ApiException('Silakan masuk kembali.');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/penenun/target/$targetId/hasil'),
+        headers: _headers(token: token),
+        body: jsonEncode({'jumlah_selesai': jumlah, 'catatan': catatan, 'request_id': requestId ?? '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}'}),
+      ).timeout(ApiConfig.timeout);
+      final decoded = _decode(response.body);
+      if (response.statusCode != 201) {
+        throw ApiException(_pesanDari(decoded, 'Gagal menyimpan hasil produksi.'));
+      }
+    } on ApiException {
+      rethrow;
+    } catch (_) {
+      throw const ApiException('Gagal mengirim hasil produksi. Periksa koneksi server.');
     }
   }
 
