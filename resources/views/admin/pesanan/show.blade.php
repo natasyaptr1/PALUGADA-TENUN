@@ -47,23 +47,50 @@
         </div>
         @php
             $aksiTersedia = \App\Support\AlurStatusPesanan::aksiTersediaUntukStatus($pesanan->status_pesanan);
+            $pembayaranTerbaru = $pesanan->pembayaran->first();
+            $bisaKonfirmasiCash = $pesanan->status_pesanan === 'menunggu_pembayaran'
+                && $pembayaranTerbaru
+                && $pembayaranTerbaru->metode === 'cash'
+                && $pembayaranTerbaru->status_pembayaran === 'menunggu'
+                && number_format((float) $pembayaranTerbaru->jumlah_bayar, 2, '.', '') === number_format((float) $pesanan->total, 2, '.', '');
         @endphp
 
-        @if($aksiTersedia)
+        @if($aksiTersedia || $bisaKonfirmasiCash)
             <div class="pesanan-action-wrap">
-                <form method="POST" action="{{ route('admin.pesanan.status', $pesanan) }}" onsubmit="return confirm('{{ \App\Support\AlurStatusPesanan::teksKonfirmasi($aksiTersedia, $pesanan->kode_pesanan) }}')">
-                    @csrf
-                    @method('PATCH')
-                    <input type="hidden" name="aksi" value="{{ $aksiTersedia }}">
-                    <button type="submit" class="{{ \App\Support\AlurStatusPesanan::kelasTombol($aksiTersedia) }}">
-                        {{ \App\Support\AlurStatusPesanan::labelTombol($aksiTersedia) }}
-                    </button>
-                </form>
+                <div class="pesanan-action-buttons">
+                    @if($bisaKonfirmasiCash)
+                        <form method="POST" action="{{ route('admin.pesanan.konfirmasi-pembayaran', $pesanan) }}" onsubmit="return confirm('Konfirmasi bahwa pembayaran tunai sebesar {{ \App\Support\LabelPesanan::formatRupiah($pembayaranTerbaru->jumlah_bayar) }} untuk pesanan {{ $pesanan->kode_pesanan }} sudah diterima?')">
+                            @csrf
+                            <button type="submit" class="btn btn-primary">Konfirmasi Pembayaran Cash</button>
+                        </form>
+                    @endif
+
+                    @if($aksiTersedia)
+                        <form method="POST" action="{{ route('admin.pesanan.status', $pesanan) }}" onsubmit="return confirm('{{ \App\Support\AlurStatusPesanan::teksKonfirmasi($aksiTersedia, $pesanan->kode_pesanan) }}')">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="aksi" value="{{ $aksiTersedia }}">
+                            <button type="submit" class="{{ \App\Support\AlurStatusPesanan::kelasTombol($aksiTersedia) }}">
+                                {{ \App\Support\AlurStatusPesanan::labelTombol($aksiTersedia) }}
+                            </button>
+                        </form>
+                    @endif
+                </div>
 
                 @if($pesanan->status_pesanan === 'menunggu_pembayaran')
-                    <p class="pesanan-action-note">
-                        Menunggu pembayaran. Status berubah menjadi Dibayar otomatis setelah pembayaran dikonfirmasi.
-                    </p>
+                    @if($pembayaranTerbaru && $pembayaranTerbaru->metode === 'midtrans' && $pembayaranTerbaru->status_pembayaran === 'menunggu')
+                        <p class="pesanan-action-note">
+                            Menunggu pembayaran online (Midtrans). Status berubah otomatis setelah pembayaran berhasil.
+                        </p>
+                    @elseif(!$pembayaranTerbaru)
+                        <p class="pesanan-action-note">
+                            Belum ada data pembayaran, konfirmasi belum tersedia.
+                        </p>
+                    @elseif(!$bisaKonfirmasiCash)
+                        <p class="pesanan-action-note">
+                            Menunggu pembayaran. Status berubah menjadi Dibayar otomatis setelah pembayaran dikonfirmasi.
+                        </p>
+                    @endif
                 @elseif($pesanan->status_pesanan === 'dibayar' || $pesanan->status_pesanan === 'diproses')
                     <p class="pesanan-action-note">
                         Pesanan yang sudah dibayar tidak dapat dibatalkan dari halaman ini.

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\PembayaranBerhasil;
 use App\Http\Controllers\Controller;
+use App\Models\Pembayaran;
 use App\Models\Pesanan;
 use App\Support\AlurStatusPesanan;
 use App\Support\LabelPesanan;
@@ -135,5 +137,87 @@ class PesananController extends Controller
         return redirect()
             ->route('admin.pesanan.show', $pesanan)
             ->with('success', $pesanSukses);
+    }
+
+    /**
+     * Mengonfirmasi pembayaran cash pesanan oleh admin.
+     */
+    public function konfirmasiPembayaran(Pesanan $pesanan): RedirectResponse
+    {
+        $pesanGagalPrekondisi = null;
+
+        try {
+            DB::transaction(function () use ($pesanan, &$pesanGagalPrekondisi) {
+                /** @var Pesanan|null $pesananTerkunci */
+                $pesananTerkunci = Pesanan::lockForUpdate()->find($pesanan->id);
+
+                if (!$pesananTerkunci || $pesananTerkunci->status_pesanan !== 'menunggu_pembayaran') {
+                    $pesanGagalPrekondisi = 'Pesanan ini tidak menunggu pembayaran.';
+                    return;
+                }
+
+                /** @var Pembayaran|null $pembayaranTerbaru */
+                $pembayaranTerbaru = $pesananTerkunci->pembayaran()
+                    ->orderByDesc('id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$pembayaranTerbaru || $pembayaranTerbaru->metode !== 'cash' || $pembayaranTerbaru->status_pembayaran !== 'menunggu') {
+                    $pesanGagalPrekondisi = 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.';
+                    return;
+                }
+
+                $jumlahBayarFormat = number_format((float) $pembayaranTerbaru->jumlah_bayar, 2, '.', '');
+                $totalPesananFormat = number_format((float) $pesananTerkunci->total, 2, '.', '');
+
+                if ($jumlahBayarFormat !== $totalPesananFormat) {
+                    $pesanGagalPrekondisi = 'Jumlah pembayaran tidak sesuai dengan total pesanan.';
+                    return;
+                }
+
+                // Ubah status pembayaran
+                $pembayaranTerbaru->status_pembayaran = 'berhasil';
+                $pembayaranTerbaru->tanggal_bayar = now();
+                $pembayaranTerbaru->dikonfirmasi_oleh = auth()->id();
+                $pembayaranTerbaru->save();
+
+                // Ubah status pesanan
+                $pesananTerkunci->status_pesanan = 'dibayar';
+                $pesananTerkunci->save();
+
+                // Panggil event sinkron di dalam transaksi
+                PembayaranBerhasil::dispatch($pesananTerkunci->fresh());
+
+                Log::info('Pembayaran Cash pesanan berhasil dikonfirmasi', [
+                    'pesanan_id' => $pesananTerkunci->id,
+                    'pembayaran_id' => $pembayaranTerbaru->id,
+                    'admin_id' => auth()->id(),
+                ]);
+            });
+        } catch (\Throwable $e) {
+            Log::error('Gagal mengonfirmasi pembayaran Cash', [
+                'pesanan_id' => $pesanan->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $isBusiness = !($e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException || $e instanceof \Error);
+            $pesanSingkat = $isBusiness && !empty($e->getMessage())
+                ? rtrim($e->getMessage(), '.')
+                : 'Terjadi kesalahan sistem';
+
+            return redirect()
+                ->route('admin.pesanan.show', $pesanan)
+                ->with('error', "Konfirmasi gagal diproses. Tidak ada perubahan yang disimpan: {$pesanSingkat}.");
+        }
+
+        if ($pesanGagalPrekondisi !== null) {
+            return redirect()
+                ->route('admin.pesanan.show', $pesanan)
+                ->with('error', $pesanGagalPrekondisi);
+        }
+
+        return redirect()
+            ->route('admin.pesanan.show', $pesanan)
+            ->with('success', 'Pembayaran Cash berhasil dikonfirmasi. Pesanan berstatus Dibayar.');
     }
 }

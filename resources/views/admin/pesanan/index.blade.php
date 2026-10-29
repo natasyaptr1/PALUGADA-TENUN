@@ -109,8 +109,8 @@
                         {{ \App\Support\LabelPesanan::labelStatusPesanan($pesanan->status_pesanan) }}
                     </span>
                 </td>
-                <td class="actions">
-                    <div class="actions">
+                <td class="aksi-pesanan">
+                    <div class="actions actions-kanan">
                         <a href="{{ route('admin.pesanan.show', $pesanan) }}">Detail</a>
                     </div>
                 </td>

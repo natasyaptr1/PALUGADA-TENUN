@@ -174,6 +174,9 @@ Route::middleware(['auth', 'peran:admin'])
         Route::patch('/pesanan/{pesanan}/status', [PesananController::class, 'ubahStatus'])
             ->name('pesanan.status');
 
+        Route::post('/pesanan/{pesanan}/konfirmasi-pembayaran', [PesananController::class, 'konfirmasiPembayaran'])
+            ->name('pesanan.konfirmasi-pembayaran');
+
         Route::resource('pesanan', PesananController::class)->only(['index', 'show']);
 
         Route::view('/pembayaran', 'admin.placeholder', [

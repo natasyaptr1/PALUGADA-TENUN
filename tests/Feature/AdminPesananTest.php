@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\PembayaranBerhasil;
 use App\Models\DetailPesanan;
 use App\Models\Keranjang;
 use App\Models\MutasiStok;
@@ -11,6 +12,7 @@ use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Stok;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 class AdminPesananTest extends TestCase
@@ -582,12 +584,28 @@ class AdminPesananTest extends TestCase
 
     public function test_halaman_detail_tidak_menampilkan_tombol_konfirmasi_pembayaran(): void
     {
-        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-NO-ACTION']);
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-NO-ACTION',
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 150000,
+        ]);
 
+        // Belum ada pembayaran -> tombol konfirmasi tidak tampil
         $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
-
         $response->assertOk();
-        $response->assertDontSee('Konfirmasi Pembayaran');
+        $response->assertDontSee('Konfirmasi Pembayaran Cash');
+
+        // Pembayaran cash yang sesuai total dan menunggu -> tombol konfirmasi tampil
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 150000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        $response2 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+        $response2->assertOk();
+        $response2->assertSee('Konfirmasi Pembayaran Cash');
     }
 
     public function test_transisi_status_valid_berhasil_proses_selesai_batalkan(): void
@@ -822,7 +840,8 @@ class AdminPesananTest extends TestCase
         $resMenunggu = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pMenunggu));
         $resMenunggu->assertOk();
         $resMenunggu->assertSee('Batalkan Pesanan');
-        $resMenunggu->assertSee('Menunggu pembayaran. Status berubah menjadi Dibayar otomatis setelah pembayaran dikonfirmasi.');
+        $resMenunggu->assertSee('Belum ada data pembayaran, konfirmasi belum tersedia.');
+        $resMenunggu->assertDontSee('Konfirmasi Pembayaran Cash');
         $resMenunggu->assertDontSee('Proses Pesanan');
         $resMenunggu->assertDontSee('Tandai Selesai');
 
@@ -861,5 +880,305 @@ class AdminPesananTest extends TestCase
         $resBatal->assertDontSee('Proses Pesanan');
         $resBatal->assertDontSee('Tandai Selesai');
         $resBatal->assertDontSee('Batalkan Pesanan');
+    }
+
+    public function test_konfirmasi_pembayaran_cash_berhasil_dan_dispatch_event(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-CONFIRM-CASH',
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 200000,
+        ]);
+
+        $pembayaran = Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 200000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        Event::fake([PembayaranBerhasil::class]);
+
+        $response = $this->actingAs($this->admin)->post(
+            route('admin.pesanan.konfirmasi-pembayaran', $pesanan)
+        );
+
+        $response->assertRedirect(route('admin.pesanan.show', $pesanan));
+        $response->assertSessionHas('success', 'Pembayaran Cash berhasil dikonfirmasi. Pesanan berstatus Dibayar.');
+
+        $pesanan->refresh();
+        $pembayaran->refresh();
+
+        $this->assertEquals('dibayar', $pesanan->status_pesanan);
+        $this->assertEquals('berhasil', $pembayaran->status_pembayaran);
+        $this->assertNotNull($pembayaran->tanggal_bayar);
+        $this->assertEquals($this->admin->id, $pembayaran->dikonfirmasi_oleh);
+
+        Event::assertDispatched(PembayaranBerhasil::class, function ($event) use ($pesanan) {
+            return $event->pesanan->id === $pesanan->id;
+        });
+    }
+
+    public function test_konfirmasi_pembayaran_cash_ditolak_dan_event_tidak_didispatch(): void
+    {
+        Event::fake([PembayaranBerhasil::class]);
+
+        // 1. Metode midtrans
+        $p1 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p1->id, 'metode' => 'midtrans', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'menunggu']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p1))
+            ->assertRedirect(route('admin.pesanan.show', $p1))
+            ->assertSessionHas('error', 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.');
+
+        // 2. Pesanan sudah dibayar
+        $p2 = $this->buatPesanan(['status_pesanan' => 'dibayar', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p2->id, 'metode' => 'cash', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'menunggu']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p2))
+            ->assertRedirect(route('admin.pesanan.show', $p2))
+            ->assertSessionHas('error', 'Pesanan ini tidak menunggu pembayaran.');
+
+        // 3. Pesanan batal
+        $p3 = $this->buatPesanan(['status_pesanan' => 'batal', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p3->id, 'metode' => 'cash', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'menunggu']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p3))
+            ->assertRedirect(route('admin.pesanan.show', $p3))
+            ->assertSessionHas('error', 'Pesanan ini tidak menunggu pembayaran.');
+
+        // 4. Pembayaran sudah berhasil
+        $p4 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p4->id, 'metode' => 'cash', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'berhasil']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p4))
+            ->assertRedirect(route('admin.pesanan.show', $p4))
+            ->assertSessionHas('error', 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.');
+
+        // 5. Pembayaran gagal
+        $p5 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p5->id, 'metode' => 'cash', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'gagal']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p5))
+            ->assertRedirect(route('admin.pesanan.show', $p5))
+            ->assertSessionHas('error', 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.');
+
+        // 6. Tanpa data pembayaran
+        $p6 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p6))
+            ->assertRedirect(route('admin.pesanan.show', $p6))
+            ->assertSessionHas('error', 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.');
+
+        // 7. Jumlah bayar tidak sama dengan total
+        $p7 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 300000]);
+        Pembayaran::create(['pesanan_id' => $p7->id, 'metode' => 'cash', 'jumlah_bayar' => 250000, 'status_pembayaran' => 'menunggu']);
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $p7))
+            ->assertRedirect(route('admin.pesanan.show', $p7))
+            ->assertSessionHas('error', 'Jumlah pembayaran tidak sesuai dengan total pesanan.');
+
+        Event::assertNotDispatched(PembayaranBerhasil::class);
+    }
+
+    public function test_permintaan_kedua_basi_setelah_berhasil_tidak_mendispatch_event_lagi(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-DOUBLE-CASH',
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 150000,
+        ]);
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 150000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        Event::fake([PembayaranBerhasil::class]);
+
+        // Permintaan pertama: berhasil
+        $res1 = $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+        $res1->assertSessionHas('success');
+        Event::assertDispatchedTimes(PembayaranBerhasil::class, 1);
+
+        // Permintaan kedua: ditolak karena status pesanan sudah dibayar
+        $res2 = $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+        $res2->assertSessionHas('error', 'Pesanan ini tidak menunggu pembayaran.');
+        Event::assertDispatchedTimes(PembayaranBerhasil::class, 1);
+    }
+
+    public function test_konfirmasi_pembayaran_cash_bersifat_atomik_saat_listener_gagal(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-ATOMIC-FAIL',
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 180000,
+        ]);
+        $pembayaran = Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 180000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        Event::listen(PembayaranBerhasil::class, function () {
+            throw new \RuntimeException('Gagal potong stok');
+        });
+
+        $response = $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+
+        $response->assertRedirect(route('admin.pesanan.show', $pesanan));
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('Gagal potong stok', session('error'));
+
+        $pesanan->refresh();
+        $pembayaran->refresh();
+
+        $this->assertEquals('menunggu_pembayaran', $pesanan->status_pesanan);
+        $this->assertEquals('menunggu', $pembayaran->status_pembayaran);
+        $this->assertNull($pembayaran->tanggal_bayar);
+        $this->assertNull($pembayaran->dikonfirmasi_oleh);
+    }
+
+    public function test_jika_ada_lebih_dari_satu_pembayaran_yang_diperiksa_adalah_yang_terbaru(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 200000,
+        ]);
+
+        // Pembayaran lama: gagal
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 200000,
+            'status_pembayaran' => 'gagal',
+        ]);
+
+        // Pembayaran terbaru: menunggu
+        $bayarTerbaru = Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 200000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        Event::fake([PembayaranBerhasil::class]);
+
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan))
+            ->assertSessionHas('success');
+
+        $this->assertEquals('berhasil', $bayarTerbaru->fresh()->status_pembayaran);
+        $this->assertEquals('dibayar', $pesanan->fresh()->status_pesanan);
+    }
+
+    public function test_method_get_ke_url_konfirmasi_pembayaran_menghasilkan_405(): void
+    {
+        $pesanan = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+
+        $response->assertStatus(405);
+    }
+
+    public function test_pembeli_dan_penenun_tidak_bisa_memakai_route_konfirmasi_pembayaran(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 100000,
+        ]);
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 100000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        $resPembeli = $this->actingAs($this->pembeli)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+        $resPembeli->assertForbidden();
+
+        $resPenenun = $this->actingAs($this->penenun)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan));
+        $resPenenun->assertForbidden();
+
+        $this->assertEquals('menunggu_pembayaran', $pesanan->fresh()->status_pesanan);
+    }
+
+    public function test_tombol_konfirmasi_pembayaran_tampil_hanya_saat_aturan_terpenuhi(): void
+    {
+        // 1. Aturan a, b, c terpenuhi -> tombol tampil
+        $p1 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p1->id, 'metode' => 'cash', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'menunggu']);
+        $res1 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p1));
+        $res1->assertOk();
+        $res1->assertSee('Konfirmasi Pembayaran Cash');
+        $res1->assertSee('Batalkan Pesanan');
+
+        // 2. Midtrans menunggu -> tanpa tombol konfirmasi, ada info midtrans
+        $p2 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        Pembayaran::create(['pesanan_id' => $p2->id, 'metode' => 'midtrans', 'jumlah_bayar' => 200000, 'status_pembayaran' => 'menunggu']);
+        $res2 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p2));
+        $res2->assertOk();
+        $res2->assertDontSee('Konfirmasi Pembayaran Cash');
+        $res2->assertSee('Menunggu pembayaran online (Midtrans). Status berubah otomatis setelah pembayaran berhasil.');
+        $res2->assertSee('Batalkan Pesanan');
+
+        // 3. Tanpa pembayaran -> info belum ada pembayaran, tanpa tombol konfirmasi
+        $p3 = $this->buatPesanan(['status_pesanan' => 'menunggu_pembayaran', 'total' => 200000]);
+        $res3 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p3));
+        $res3->assertOk();
+        $res3->assertDontSee('Konfirmasi Pembayaran Cash');
+        $res3->assertSee('Belum ada data pembayaran, konfirmasi belum tersedia.');
+        $res3->assertSee('Batalkan Pesanan');
+
+        // 4. Status dibayar -> tanpa tombol konfirmasi
+        $p4 = $this->buatPesanan(['status_pesanan' => 'dibayar']);
+        $res4 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p4));
+        $res4->assertOk();
+        $res4->assertDontSee('Konfirmasi Pembayaran Cash');
+
+        // 5. Status diproses -> tanpa tombol konfirmasi
+        $p5 = $this->buatPesanan(['status_pesanan' => 'diproses']);
+        $res5 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p5));
+        $res5->assertOk();
+        $res5->assertDontSee('Konfirmasi Pembayaran Cash');
+
+        // 6. Status selesai -> tanpa tombol konfirmasi
+        $p6 = $this->buatPesanan(['status_pesanan' => 'selesai']);
+        $res6 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p6));
+        $res6->assertOk();
+        $res6->assertDontSee('Konfirmasi Pembayaran Cash');
+
+        // 7. Status batal -> tanpa tombol konfirmasi
+        $p7 = $this->buatPesanan(['status_pesanan' => 'batal']);
+        $res7 = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $p7));
+        $res7->assertOk();
+        $res7->assertDontSee('Konfirmasi Pembayaran Cash');
+    }
+
+    public function test_jumlah_stok_dan_baris_mutasi_stok_tidak_berubah_oleh_fitur_konfirmasi(): void
+    {
+        $produk = Produk::create([
+            'kode_produk' => 'PRD-CASH-STOK',
+            'nama_produk' => 'Kain Cash Uji',
+            'jenis' => 'Tenun Ikat',
+            'harga' => 100000,
+            'status' => 'aktif',
+        ]);
+        $stok = Stok::create(['produk_id' => $produk->id, 'jumlah_stok' => 20]);
+
+        $mutasiAwal = MutasiStok::count();
+
+        $pesanan = $this->buatPesanan([
+            'status_pesanan' => 'menunggu_pembayaran',
+            'total' => 100000,
+        ]);
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 100000,
+            'status_pembayaran' => 'menunggu',
+        ]);
+
+        Event::fake([PembayaranBerhasil::class]);
+
+        $this->actingAs($this->admin)->post(route('admin.pesanan.konfirmasi-pembayaran', $pesanan))
+            ->assertSessionHas('success');
+
+        $this->assertEquals(20, $stok->fresh()->jumlah_stok);
+        $this->assertEquals($mutasiAwal, MutasiStok::count());
     }
 }
