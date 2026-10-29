@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pesanan;
+use App\Support\AlurStatusPesanan;
 use App\Support\LabelPesanan;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class PesananController extends Controller
@@ -73,5 +77,63 @@ class PesananController extends Controller
         ]);
 
         return view('admin.pesanan.show', compact('pesanan'));
+    }
+
+    /**
+     * Memperbarui status operasional pesanan (proses, selesai, batalkan).
+     */
+    public function ubahStatus(Request $request, Pesanan $pesanan): RedirectResponse
+    {
+        $request->validate([
+            'aksi' => ['required', 'string', 'in:' . implode(',', AlurStatusPesanan::AKSI_VALID)],
+        ], [
+            'aksi.required' => 'Aksi status wajib dipilih.',
+            'aksi.in' => 'Aksi yang dipilih tidak valid.',
+        ]);
+
+        $aksi = (string) $request->input('aksi');
+        $berhasil = false;
+        $pesanSukses = '';
+
+        DB::transaction(function () use ($pesanan, $aksi, &$berhasil, &$pesanSukses) {
+            /** @var Pesanan|null $pesananTerkunci */
+            $pesananTerkunci = Pesanan::lockForUpdate()->find($pesanan->id);
+
+            if (!$pesananTerkunci || !AlurStatusPesanan::boleh($aksi, $pesananTerkunci->status_pesanan)) {
+                return;
+            }
+
+            $statusLama = $pesananTerkunci->status_pesanan;
+            $statusBaru = AlurStatusPesanan::statusTujuan($aksi);
+
+            $pesananTerkunci->status_pesanan = $statusBaru;
+            $pesananTerkunci->save();
+
+            if ($aksi === AlurStatusPesanan::AKSI_BATALKAN) {
+                $pesananTerkunci->pembayaran()
+                    ->where('status_pembayaran', 'menunggu')
+                    ->update(['status_pembayaran' => 'gagal']);
+            }
+
+            Log::info('Status operasional pesanan diubah', [
+                'pesanan_id' => $pesananTerkunci->id,
+                'status_lama' => $statusLama,
+                'status_baru' => $statusBaru,
+                'admin_id' => auth()->id(),
+            ]);
+
+            $berhasil = true;
+            $pesanSukses = AlurStatusPesanan::pesanSukses($aksi);
+        });
+
+        if (!$berhasil) {
+            return redirect()
+                ->route('admin.pesanan.show', $pesanan)
+                ->with('error', 'Status pesanan sudah berubah atau aksi tidak diizinkan. Muat ulang halaman.');
+        }
+
+        return redirect()
+            ->route('admin.pesanan.show', $pesanan)
+            ->with('success', $pesanSukses);
     }
 }

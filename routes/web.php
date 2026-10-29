@@ -171,7 +171,9 @@ Route::middleware(['auth', 'peran:admin'])
         Route::patch('/target-produksi/{target}/batal', [TargetProduksiController::class, 'cancel'])
             ->name('target-produksi.cancel');
 
-        // Halaman lainnya
+        Route::patch('/pesanan/{pesanan}/status', [PesananController::class, 'ubahStatus'])
+            ->name('pesanan.status');
+
         Route::resource('pesanan', PesananController::class)->only(['index', 'show']);
 
         Route::view('/pembayaran', 'admin.placeholder', [

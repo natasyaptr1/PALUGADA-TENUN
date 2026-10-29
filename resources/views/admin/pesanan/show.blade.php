@@ -40,6 +40,43 @@
         </div>
     </section>
 
+    {{-- Panel Tindakan Pesanan --}}
+    <section class="pesanan-panel">
+        <div class="pesanan-panel-head">
+            <h2>Tindakan Pesanan</h2>
+        </div>
+        @php
+            $aksiTersedia = \App\Support\AlurStatusPesanan::aksiTersediaUntukStatus($pesanan->status_pesanan);
+        @endphp
+
+        @if($aksiTersedia)
+            <div class="pesanan-action-wrap">
+                <form method="POST" action="{{ route('admin.pesanan.status', $pesanan) }}" onsubmit="return confirm('{{ \App\Support\AlurStatusPesanan::teksKonfirmasi($aksiTersedia, $pesanan->kode_pesanan) }}')">
+                    @csrf
+                    @method('PATCH')
+                    <input type="hidden" name="aksi" value="{{ $aksiTersedia }}">
+                    <button type="submit" class="{{ \App\Support\AlurStatusPesanan::kelasTombol($aksiTersedia) }}">
+                        {{ \App\Support\AlurStatusPesanan::labelTombol($aksiTersedia) }}
+                    </button>
+                </form>
+
+                @if($pesanan->status_pesanan === 'menunggu_pembayaran')
+                    <p class="pesanan-action-note">
+                        Menunggu pembayaran. Status berubah menjadi Dibayar otomatis setelah pembayaran dikonfirmasi.
+                    </p>
+                @elseif($pesanan->status_pesanan === 'dibayar' || $pesanan->status_pesanan === 'diproses')
+                    <p class="pesanan-action-note">
+                        Pesanan yang sudah dibayar tidak dapat dibatalkan dari halaman ini.
+                    </p>
+                @endif
+            </div>
+        @else
+            <p class="pesanan-action-closed">
+                Pesanan ini sudah {{ $pesanan->status_pesanan === 'selesai' ? 'selesai' : 'dibatalkan' }} dan statusnya tidak dapat diubah.
+            </p>
+        @endif
+    </section>
+
     {{-- Panel Pembeli dan Pengiriman --}}
     <section class="pesanan-panel">
         <div class="pesanan-panel-head">
