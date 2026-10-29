@@ -172,7 +172,7 @@ Route::middleware(['auth', 'peran:admin'])
             ->name('target-produksi.cancel');
 
         // Halaman lainnya
-        Route::resource('pesanan', PesananController::class)->only(['index']);
+        Route::resource('pesanan', PesananController::class)->only(['index', 'show']);
 
         Route::view('/pembayaran', 'admin.placeholder', [
             'judul' => 'Pembayaran',

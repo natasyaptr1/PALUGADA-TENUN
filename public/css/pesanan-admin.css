@@ -142,3 +142,162 @@
     font: inherit;
     font-size: 16px;
 }
+
+/* Halaman Detail Pesanan */
+.pesanan-detail-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 30px;
+}
+
+.pesanan-panel {
+    background: #fff;
+    border: 1px solid #e7ded2;
+    border-radius: 16px;
+    padding: 22px 24px;
+    box-shadow: 0 3px 10px rgba(18, 57, 43, .03);
+}
+
+.pesanan-panel-head {
+    border-bottom: 1px solid #eee9df;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+}
+
+.pesanan-panel-head h2 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.pesanan-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.pesanan-info-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.pesanan-info-box {
+    background: #faf8f5;
+    border: 1px solid #ede8df;
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pesanan-info-box .pesanan-info-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #6c7a74;
+}
+
+.pesanan-info-box strong {
+    font-size: 16px;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.pesanan-info-box small {
+    font-size: 13px;
+    color: #6f7d75;
+}
+
+.pesanan-address-text {
+    line-height: 1.55;
+    color: var(--ink);
+    font-size: 15px;
+    margin: 0;
+}
+
+.produk-dihapus-label {
+    display: inline-block;
+    color: var(--danger);
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Kartu Pembayaran */
+.pesanan-payment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pesanan-payment-item {
+    background: #faf8f5;
+    border: 1px solid #eae4d9;
+    border-radius: 13px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pesanan-payment-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #ece5da;
+    padding-bottom: 10px;
+}
+
+.pesanan-payment-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.pesanan-payment-item-field span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #728078;
+    margin-bottom: 3px;
+}
+
+.pesanan-payment-item-field strong {
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.pesanan-empty-text {
+    color: #728078;
+    font-size: 15px;
+    margin: 0;
+    text-align: center;
+    padding: 20px 0;
+}
+
+@media (max-width: 900px) {
+    .pesanan-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pesanan-info-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 550px) {
+    .pesanan-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .pesanan-panel {
+        padding: 16px;
+    }
+}

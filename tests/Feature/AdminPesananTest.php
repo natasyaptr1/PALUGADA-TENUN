@@ -402,4 +402,191 @@ class AdminPesananTest extends TestCase
         $response->assertSee(route('admin.pesanan.index'));
         $response->assertSee('ORD-DASHBOARD-01');
     }
+
+    public function test_admin_membuka_detail_pesanan_dan_datanya_benar(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-DETAIL-001',
+            'nama_penerima' => 'Surya Kencana',
+            'no_hp' => '08987654321',
+            'alamat_pengiriman' => "Jl. Merdeka No. 45\nKel. Bandar, Kediri",
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('PENJUALAN');
+        $response->assertSee('Detail Pesanan');
+        $response->assertSee('ORD-DETAIL-001');
+        $response->assertSee('Surya Kencana');
+        $response->assertSee('08987654321');
+        $response->assertSee("Jl. Merdeka No. 45<br />\nKel. Bandar, Kediri", false);
+        $response->assertSee(route('admin.pesanan.index'));
+    }
+
+    public function test_item_pesanan_tampil_dengan_harga_jumlah_dan_subtotal(): void
+    {
+        $produk = Produk::create([
+            'kode_produk' => 'PRD-DETAIL-ITEM',
+            'nama_produk' => 'Kain Tenun Ikat Baron',
+            'jenis' => 'Tenun Ikat',
+            'harga' => 250000,
+            'status' => 'aktif',
+        ]);
+
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-DETAIL-ITEM-01',
+            'total' => 500000,
+        ]);
+
+        DetailPesanan::create([
+            'pesanan_id' => $pesanan->id,
+            'produk_id' => $produk->id,
+            'jumlah' => 2,
+            'harga' => 250000,
+            'subtotal' => 500000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Kain Tenun Ikat Baron');
+        $response->assertSee('PRD-DETAIL-ITEM');
+        $response->assertSee('Rp 250.000');
+        $response->assertSee('2');
+        $response->assertSee('Rp 500.000');
+    }
+
+    public function test_pembayaran_pada_detail_tampil_terbaru_dulu(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-PAY-ORDER']);
+
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 150000,
+            'status_pembayaran' => 'gagal',
+            'id_transaksi' => 'TX-LAMA-001',
+        ]);
+
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'midtrans',
+            'jumlah_bayar' => 150000,
+            'status_pembayaran' => 'berhasil',
+            'id_transaksi' => 'TX-BARU-002',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+
+        $content = $response->getContent();
+        $posBaru = strpos($content, 'TX-BARU-002');
+        $posLama = strpos($content, 'TX-LAMA-001');
+
+        $this->assertNotFalse($posBaru);
+        $this->assertNotFalse($posLama);
+        $this->assertTrue($posBaru < $posLama);
+    }
+
+    public function test_pesanan_tanpa_pembayaran_menampilkan_teks_belum_ada_data_pembayaran(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-NO-PAY-DETAIL']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Belum ada data pembayaran.');
+    }
+
+    public function test_dikonfirmasi_oleh_tampil_jika_ada(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-CONFIRM']);
+
+        Pembayaran::create([
+            'pesanan_id' => $pesanan->id,
+            'metode' => 'cash',
+            'jumlah_bayar' => 200000,
+            'status_pembayaran' => 'berhasil',
+            'dikonfirmasi_oleh' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee($this->admin->nama);
+    }
+
+    public function test_produk_yang_sudah_dihapus_soft_delete_tidak_membuat_halaman_error(): void
+    {
+        $produk = Produk::create([
+            'kode_produk' => 'PRD-DELETED-99',
+            'nama_produk' => 'Tenun Khusus Edisi Terbatas',
+            'jenis' => 'Tenun Eksklusif',
+            'harga' => 450000,
+            'status' => 'aktif',
+        ]);
+
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-DELETED-PRD']);
+
+        DetailPesanan::create([
+            'pesanan_id' => $pesanan->id,
+            'produk_id' => $produk->id,
+            'jumlah' => 1,
+            'harga' => 450000,
+            'subtotal' => 450000,
+        ]);
+
+        $produk->delete(); // Soft delete
+
+        $this->assertSoftDeleted('produk', ['id' => $produk->id]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Tenun Khusus Edisi Terbatas');
+        $response->assertSee('(produk dihapus)');
+    }
+
+    public function test_detail_pesanan_dengan_id_tidak_ada_menghasilkan_404(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', 999999));
+
+        $response->assertNotFound();
+    }
+
+    public function test_tautan_detail_ada_di_halaman_index(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-INDEX-LINK']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.pesanan.show', $pesanan));
+        $response->assertSee('Detail');
+    }
+
+    public function test_pembeli_dan_penenun_tidak_bisa_mengakses_detail_pesanan(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-FORBIDDEN']);
+
+        $resPembeli = $this->actingAs($this->pembeli)->get(route('admin.pesanan.show', $pesanan));
+        $resPembeli->assertForbidden();
+
+        $resPenenun = $this->actingAs($this->penenun)->get(route('admin.pesanan.show', $pesanan));
+        $resPenenun->assertForbidden();
+    }
+
+    public function test_halaman_detail_tidak_menampilkan_tombol_ubah_status_atau_konfirmasi(): void
+    {
+        $pesanan = $this->buatPesanan(['kode_pesanan' => 'ORD-NO-ACTION']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertDontSee('Ubah Status');
+        $response->assertDontSee('Konfirmasi Pembayaran');
+        $response->assertDontSee('Batalkan Pesanan');
+    }
 }

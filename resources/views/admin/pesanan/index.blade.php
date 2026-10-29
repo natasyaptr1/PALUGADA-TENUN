@@ -68,6 +68,7 @@
                 <th>Total</th>
                 <th>Pembayaran</th>
                 <th>Status Pesanan</th>
+                <th style="width: 80px; text-align: right;">Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -77,7 +78,11 @@
             @endphp
             <tr>
                 <td>{{ $daftarPesanan->firstItem() ? $daftarPesanan->firstItem() + $index : $index + 1 }}</td>
-                <td><strong>{{ $pesanan->kode_pesanan }}</strong></td>
+                <td>
+                    <a href="{{ route('admin.pesanan.show', $pesanan) }}">
+                        <strong>{{ $pesanan->kode_pesanan }}</strong>
+                    </a>
+                </td>
                 <td>
                     <div class="pesanan-buyer-info">
                         <strong>{{ $pesanan->pembeli?->nama ?? '—' }}</strong>
@@ -104,10 +109,15 @@
                         {{ \App\Support\LabelPesanan::labelStatusPesanan($pesanan->status_pesanan) }}
                     </span>
                 </td>
+                <td class="actions">
+                    <div class="actions">
+                        <a href="{{ route('admin.pesanan.show', $pesanan) }}">Detail</a>
+                    </div>
+                </td>
             </tr>
         @empty
             <tr>
-                <td colspan="8" class="empty">Belum ada pesanan.</td>
+                <td colspan="9" class="empty">Belum ada pesanan.</td>
             </tr>
         @endforelse
         </tbody>

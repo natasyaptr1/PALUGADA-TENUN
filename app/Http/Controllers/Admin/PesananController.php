@@ -56,4 +56,22 @@ class PesananController extends Controller
 
         return view('admin.pesanan.index', compact('daftarPesanan', 'ringkasan', 'cari', 'statusInput'));
     }
+
+    /**
+     * Menampilkan detail informasi pesanan pembeli.
+     */
+    public function show(Pesanan $pesanan): View
+    {
+        $pesanan->load([
+            'pembeli',
+            'detail.produk' => function ($query) {
+                $query->withTrashed()->with('produkFoto');
+            },
+            'pembayaran' => function ($query) {
+                $query->orderByDesc('id')->with('pengonfirmasi');
+            },
+        ]);
+
+        return view('admin.pesanan.show', compact('pesanan'));
+    }
 }
