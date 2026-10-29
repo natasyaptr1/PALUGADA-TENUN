@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\BerandaController;
 use App\Http\Controllers\Admin\JenisProdukController;
 use App\Http\Controllers\Admin\TargetProduksiController;
 use App\Http\Controllers\Admin\StokController;
+use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
 use App\Http\Controllers\AutentikasiController;
@@ -170,11 +171,13 @@ Route::middleware(['auth', 'peran:admin'])
         Route::patch('/target-produksi/{target}/batal', [TargetProduksiController::class, 'cancel'])
             ->name('target-produksi.cancel');
 
-        // Halaman lainnya
-        Route::view('/pesanan', 'admin.placeholder', [
-            'judul' => 'Pesanan',
-            'deskripsi' => 'Pesanan pembeli akan tampil di sini setelah fitur pemesanan mulai digunakan.',
-        ])->name('pesanan');
+        Route::patch('/pesanan/{pesanan}/status', [PesananController::class, 'ubahStatus'])
+            ->name('pesanan.status');
+
+        Route::post('/pesanan/{pesanan}/konfirmasi-pembayaran', [PesananController::class, 'konfirmasiPembayaran'])
+            ->name('pesanan.konfirmasi-pembayaran');
+
+        Route::resource('pesanan', PesananController::class)->only(['index', 'show']);
 
         Route::view('/pembayaran', 'admin.placeholder', [
             'judul' => 'Pembayaran',
