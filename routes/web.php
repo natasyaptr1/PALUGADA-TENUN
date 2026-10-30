@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Http\Controllers\Admin\BerandaController;
@@ -8,6 +9,8 @@ use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
 use App\Http\Controllers\AutentikasiController;
 use App\Http\Controllers\Pembeli\AkunController;
+use App\Http\Controllers\Pembeli\KeranjangController;
+use App\Http\Controllers\Pembeli\CheckoutController;
 use App\Models\Produk;
 use Illuminate\Support\Facades\Route;
 
@@ -74,9 +77,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/masuk', [AutentikasiController::class, 'masuk'])
         ->name('masuk.proses');
 
-    Route::get('/login', function () {
-        return redirect('/masuk');
-    })->name('login');
+    Route::get('/login', fn () => redirect('/masuk'))
+        ->name('login');
 
     Route::get('/daftar', [AutentikasiController::class, 'tampilDaftar'])
         ->name('daftar');
@@ -89,10 +91,12 @@ Route::post('/keluar', [AutentikasiController::class, 'keluar'])
     ->middleware('auth')
     ->name('keluar');
 
+// PEMBELI
 Route::middleware(['auth', 'peran:pembeli'])
     ->prefix('akun')
     ->name('pembeli.')
     ->group(function () {
+
         Route::get('/', [AkunController::class, 'beranda'])
             ->name('akun');
 
@@ -105,10 +109,27 @@ Route::middleware(['auth', 'peran:pembeli'])
         Route::get('/pesanan', [AkunController::class, 'pesanan'])
             ->name('pesanan');
 
-        Route::get('/keranjang', [AkunController::class, 'keranjang'])
+        // KERANJANG - FIRJA
+        Route::get('/keranjang', [KeranjangController::class, 'index'])
             ->name('keranjang');
+
+        Route::post('/keranjang', [KeranjangController::class, 'tambah'])
+            ->name('keranjang.tambah');
+
+        Route::put('/keranjang/{detail}', [KeranjangController::class, 'ubah'])
+            ->name('keranjang.ubah');
+
+        Route::delete('/keranjang/{detail}', [KeranjangController::class, 'hapus'])
+            ->name('keranjang.hapus');
+
+        Route::get('/checkout', [CheckoutController::class, 'index'])
+            ->name('checkout');
+
+        Route::post('/checkout', [CheckoutController::class, 'simpan'])
+            ->name('checkout.simpan');
     });
 
+// ADMIN
 Route::middleware(['auth', 'peran:admin'])
     ->prefix('admin')
     ->name('admin.')
@@ -117,7 +138,6 @@ Route::middleware(['auth', 'peran:admin'])
         Route::get('/beranda', BerandaController::class)
             ->name('beranda');
 
-        // Produk
         Route::resource('produk', ProdukController::class)
             ->except(['show']);
 
@@ -126,7 +146,6 @@ Route::middleware(['auth', 'peran:admin'])
             [ProdukController::class, 'destroyFoto']
         )->name('produk.foto.destroy');
 
-        // Jenis produk
         Route::resource('jenis-produk', JenisProdukController::class)
             ->parameters(['jenis-produk' => 'jenisProduk'])
             ->except(['show']);
@@ -136,41 +155,33 @@ Route::middleware(['auth', 'peran:admin'])
             ->names('jenis_produk')
             ->except(['show']);
 
-        // Penenun
         Route::resource('penenun', PenenunController::class)
             ->except(['show']);
 
-        // Monitoring Stok
         Route::get('/stok', [StokController::class, 'index'])
             ->name('stok');
 
         Route::get('/target-produksi/create', [TargetProduksiController::class, 'create'])
             ->name('target-produksi.create');
 
-        // Target Produksi
         Route::get('/target-produksi', [TargetProduksiController::class, 'index'])
             ->name('target-produksi');
 
         Route::post('/target-produksi', [TargetProduksiController::class, 'store'])
             ->name('target-produksi.store');
 
-        // Detail Target Produksi
         Route::get('/target-produksi/{target}', [TargetProduksiController::class, 'show'])
             ->name('target-produksi.show');
 
-        // Ubah Target Produksi
         Route::put('/target-produksi/{target}', [TargetProduksiController::class, 'update'])
             ->name('target-produksi.update');
 
-        // Hapus Target Produksi
         Route::delete('/target-produksi/{target}', [TargetProduksiController::class, 'destroy'])
             ->name('target-produksi.destroy');
 
-        // Batalkan Target Produksi
         Route::patch('/target-produksi/{target}/batal', [TargetProduksiController::class, 'cancel'])
             ->name('target-produksi.cancel');
 
-        // Halaman lainnya
         Route::view('/pesanan', 'admin.placeholder', [
             'judul' => 'Pesanan',
             'deskripsi' => 'Pesanan pembeli akan tampil di sini setelah fitur pemesanan mulai digunakan.',
@@ -187,7 +198,7 @@ Route::middleware(['auth', 'peran:admin'])
         ])->name('laporan');
     });
 
-// Beranda Penenun
+// PENENUN
 Route::middleware(['auth', 'peran:penenun'])
     ->get('/penenun', fn () => view('penenun.beranda', [
         'pengguna' => auth()->user()->load('profilPenenun'),
