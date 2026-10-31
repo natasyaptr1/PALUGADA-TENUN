@@ -31,8 +31,18 @@ Route::get('/', function () {
 })->name('landing');
 
 Route::get('/katalog', function () {
-    $cari = trim((string) request('cari'));
-    $jenis = trim((string) request('jenis'));
+    $cari = trim((string) request('cari', ''));
+    $jenis = trim((string) request('jenis', ''));
+
+    $hargaMin = request()->filled('harga_min')
+        ? max(0, (float) request('harga_min'))
+        : null;
+
+    $hargaMax = request()->filled('harga_max')
+        ? max(0, (float) request('harga_max'))
+        : null;
+
+    $stokTersedia = request('stok_tersedia') === '1';
 
     $daftarProduk = Produk::query()
         ->with('stok')
@@ -46,7 +56,20 @@ Route::get('/katalog', function () {
                     ->orWhere('warna', 'like', "%{$cari}%");
             });
         })
-        ->when($jenis, fn ($query) => $query->where('jenis', $jenis))
+        ->when($jenis, fn ($query) =>
+            $query->where('jenis', $jenis)
+        )
+        ->when($hargaMin !== null, fn ($query) =>
+            $query->where('harga', '>=', $hargaMin)
+        )
+        ->when($hargaMax !== null, fn ($query) =>
+            $query->where('harga', '<=', $hargaMax)
+        )
+        ->when($stokTersedia, fn ($query) =>
+            $query->whereHas('stok', function ($stok) {
+                $stok->where('jumlah_stok', '>', 0);
+            })
+        )
         ->latest()
         ->get();
 
@@ -63,7 +86,10 @@ Route::get('/katalog', function () {
         'daftarProduk',
         'jenisProduk',
         'cari',
-        'jenis'
+        'jenis',
+        'hargaMin',
+        'hargaMax',
+        'stokTersedia'
     ));
 })->name('pembeli.katalog');
 

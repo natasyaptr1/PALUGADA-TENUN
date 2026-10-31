@@ -8,12 +8,61 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 class ProdukController extends Controller {
-    public function index(Request $request): JsonResponse {
-        $daftar=Produk::with('stok')->where('status','aktif')
-            ->when($request->filled('cari'),fn($q)=>$q->where('nama_produk','like','%'.$request->cari.'%'))
-            ->paginate(min(max((int)$request->input('per_halaman',12),1),50));
-        return response()->json(['data'=>$daftar->items(),'meta'=>['halaman_sekarang'=>$daftar->currentPage(),'per_halaman'=>$daftar->perPage(),'total'=>$daftar->total(),'halaman_terakhir'=>$daftar->lastPage()]]);
+    public function index(Request $request): JsonResponse
+    {
+        $filter = $request->validate([
+            'cari' => ['nullable', 'string', 'max:100'],
+            'jenis' => ['nullable', 'string', 'max:50'],
+            'harga_min' => ['nullable', 'numeric', 'min:0'],
+            'harga_max' => ['nullable', 'numeric', 'min:0', 'gte:harga_min'],
+            'stok_tersedia' => ['nullable', 'boolean'],
+            'per_halaman' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $daftar = Produk::with('stok')
+            ->where('status', 'aktif')
+
+            // Pencarian berdasarkan nama produk
+            ->when($request->filled('cari'), function ($query) use ($filter) {
+                $query->where('nama_produk', 'like', '%' . $filter['cari'] . '%');
+            })
+
+            // Filter berdasarkan jenis produk
+            ->when($request->filled('jenis'), function ($query) use ($filter) {
+                $query->where('jenis', $filter['jenis']);
+            })
+
+            // Filter harga minimum
+            ->when($request->filled('harga_min'), function ($query) use ($filter) {
+                $query->where('harga', '>=', $filter['harga_min']);
+            })
+
+            // Filter harga maksimum
+            ->when($request->filled('harga_max'), function ($query) use ($filter) {
+                $query->where('harga', '<=', $filter['harga_max']);
+            })
+
+            // Filter produk yang stoknya tersedia
+            ->when($request->boolean('stok_tersedia'), function ($query) {
+                $query->whereHas('stok', function ($stok) {
+                    $stok->where('jumlah_stok', '>', 0);
+                });
+            })
+
+            ->orderBy('nama_produk')
+            ->paginate($filter['per_halaman'] ?? 12);
+
+        return response()->json([
+            'data' => $daftar->items(),
+            'meta' => [
+                'halaman_sekarang' => $daftar->currentPage(),
+                'per_halaman' => $daftar->perPage(),
+                'total' => $daftar->total(),
+                'halaman_terakhir' => $daftar->lastPage(),
+            ],
+        ]);
     }
+
     public function show(Produk $produk): JsonResponse { abort_unless($produk->status==='aktif',404); return response()->json(['data'=>$produk->load('stok')]); }
     public function store(Request $request): JsonResponse {
         $data=$this->validasi($request);
