@@ -1,10 +1,10 @@
-
 <?php
 
 use App\Http\Controllers\Admin\BerandaController;
 use App\Http\Controllers\Admin\JenisProdukController;
 use App\Http\Controllers\Admin\TargetProduksiController;
 use App\Http\Controllers\Admin\StokController;
+use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
 use App\Http\Controllers\AutentikasiController;
@@ -136,14 +136,14 @@ Route::middleware(['auth', 'peran:pembeli'])
 
         Route::get('/pesanan', [AkunController::class, 'pesanan'])
             ->name('pesanan');
-        
-        Route::get('/pesanan/{pesanan}/bayar',[PembayaranController::class, 'lanjutkan']
-            )->name('pesanan.bayar');   
-        
+
+        Route::get('/pesanan/{pesanan}/bayar', [PembayaranController::class, 'lanjutkan'])
+            ->name('pesanan.bayar');
+
         Route::patch(
             '/pesanan/{pesanan}/batalkan',
             [PembatalanPesananController::class, 'batalkan']
-        )->name('pesanan.batalkan');    
+        )->name('pesanan.batalkan');
 
         // KERANJANG - FIRJA
         Route::get('/keranjang', [KeranjangController::class, 'index'])
@@ -164,9 +164,8 @@ Route::middleware(['auth', 'peran:pembeli'])
         Route::post('/checkout', [CheckoutController::class, 'simpan'])
             ->name('checkout.simpan');
 
-        Route::post('/keranjang/pilih-checkout',
-            [KeranjangController::class, 'pilihCheckout']
-        )->name('keranjang.pilih-checkout');    
+        Route::post('/keranjang/pilih-checkout', [KeranjangController::class, 'pilihCheckout'])
+            ->name('keranjang.pilih-checkout');
     });
 
 // ADMIN
@@ -222,10 +221,19 @@ Route::middleware(['auth', 'peran:admin'])
         Route::patch('/target-produksi/{target}/batal', [TargetProduksiController::class, 'cancel'])
             ->name('target-produksi.cancel');
 
-        Route::view('/pesanan', 'admin.placeholder', [
-            'judul' => 'Pesanan',
-            'deskripsi' => 'Pesanan pembeli akan tampil di sini setelah fitur pemesanan mulai digunakan.',
-        ])->name('pesanan');
+        // PESANAN ADMIN - PANJOL
+        Route::resource('pesanan', PesananController::class)
+            ->only(['index', 'show']);
+
+        Route::patch(
+            '/pesanan/{pesanan}/status',
+            [PesananController::class, 'ubahStatus']
+        )->name('pesanan.status');
+
+        Route::post(
+            '/pesanan/{pesanan}/konfirmasi-pembayaran',
+            [PesananController::class, 'konfirmasiPembayaran']
+        )->name('pesanan.konfirmasi-pembayaran');
 
         Route::view('/pembayaran', 'admin.placeholder', [
             'judul' => 'Pembayaran',

@@ -1,0 +1,369 @@
+/* PALUGADA - CSS Khusus Daftar Pesanan Admin */
+
+/* Status Pesanan & Pembayaran Badges */
+.status-pesanan-menunggu-pembayaran,
+.status-pesanan-dibayar,
+.status-pesanan-diproses,
+.status-pesanan-selesai,
+.status-pesanan-batal,
+.status-pesanan-netral,
+.status-bayar-menunggu,
+.status-bayar-berhasil,
+.status-bayar-gagal,
+.status-bayar-kedaluwarsa,
+.status-bayar-netral {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+/* Pesanan: Menunggu Pembayaran (Emas) */
+.status-pesanan-menunggu-pembayaran {
+    background: #fff6e5;
+    color: #925e12;
+    border: 1px solid #fae2b8;
+}
+
+/* Pesanan: Dibayar (Nada hijau lembut) */
+.status-pesanan-dibayar {
+    background: #eaf4ec;
+    color: #1f6b47;
+    border: 1px solid #d2ebd8;
+}
+
+/* Pesanan: Diproses (Nada biru netral berbeda) */
+.status-pesanan-diproses {
+    background: #eaf0f8;
+    color: #2b557c;
+    border: 1px solid #d4e2f2;
+}
+
+/* Pesanan: Selesai (Hijau tua) */
+.status-pesanan-selesai {
+    background: #deeee3;
+    color: var(--green-950);
+    border: 1px solid #bedec8;
+}
+
+/* Pesanan: Dibatalkan (Danger) */
+.status-pesanan-batal {
+    background: #fdeeee;
+    color: var(--danger);
+    border: 1px solid #f8cdcd;
+}
+
+.status-pesanan-netral {
+    background: #f3f3f0;
+    color: #616e66;
+    border: 1px solid #e1e3dd;
+}
+
+/* Pembayaran: Menunggu (Emas) */
+.status-bayar-menunggu {
+    background: #fff6e5;
+    color: #925e12;
+    border: 1px solid #fae2b8;
+}
+
+/* Pembayaran: Berhasil (Hijau) */
+.status-bayar-berhasil {
+    background: #eaf4ec;
+    color: #1b6145;
+    border: 1px solid #cce8d3;
+}
+
+/* Pembayaran: Gagal (Danger) */
+.status-bayar-gagal {
+    background: #fdeeee;
+    color: var(--danger);
+    border: 1px solid #f8cdcd;
+}
+
+/* Pembayaran: Kedaluwarsa (Danger) */
+.status-bayar-kedaluwarsa {
+    background: #fbe9e9;
+    color: var(--danger);
+    border: 1px solid #f6cfcf;
+}
+
+.status-bayar-netral {
+    background: #f3f3f0;
+    color: #616e66;
+    border: 1px solid #e1e3dd;
+}
+
+/* Informasi Pembeli di Tabel */
+.pesanan-buyer-info strong {
+    display: block;
+    color: var(--ink);
+    font-size: 15px;
+}
+
+.pesanan-buyer-info small {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+/* Informasi Pembayaran di Tabel */
+.pesanan-payment-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+}
+
+.pesanan-payment-method {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.pesanan-total {
+    font-weight: 700;
+    color: var(--green-950);
+    white-space: nowrap;
+}
+
+/* Kolom Aksi Tabel Pesanan */
+td.aksi-pesanan {
+    text-align: right;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+td.aksi-pesanan .actions-kanan,
+.actions.actions-kanan {
+    justify-content: flex-end;
+}
+
+/* Toolbar Form Pesanan */
+.toolbar.pesanan-toolbar select {
+    min-height: 46px;
+    padding: 10px 14px;
+    border: 1px solid #ded2c1;
+    background: #fff;
+    border-radius: 11px;
+    color: var(--ink);
+    font: inherit;
+    font-size: 16px;
+}
+
+/* Halaman Detail Pesanan */
+.pesanan-detail-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 30px;
+}
+
+.pesanan-panel {
+    background: #fff;
+    border: 1px solid #e7ded2;
+    border-radius: 16px;
+    padding: 22px 24px;
+    box-shadow: 0 3px 10px rgba(18, 57, 43, .03);
+}
+
+.pesanan-panel-head {
+    border-bottom: 1px solid #eee9df;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+}
+
+.pesanan-panel-head h2 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.pesanan-info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.pesanan-info-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.pesanan-info-box {
+    background: #faf8f5;
+    border: 1px solid #ede8df;
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pesanan-info-box .pesanan-info-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #6c7a74;
+}
+
+.pesanan-info-box strong {
+    font-size: 16px;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.pesanan-info-box small {
+    font-size: 13px;
+    color: #6f7d75;
+}
+
+.pesanan-address-text {
+    line-height: 1.55;
+    color: var(--ink);
+    font-size: 15px;
+    margin: 0;
+}
+
+.produk-dihapus-label {
+    display: inline-block;
+    color: var(--danger);
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* Kartu Pembayaran */
+.pesanan-payment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.pesanan-payment-item {
+    background: #faf8f5;
+    border: 1px solid #eae4d9;
+    border-radius: 13px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pesanan-payment-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #ece5da;
+    padding-bottom: 10px;
+}
+
+.pesanan-payment-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.pesanan-payment-item-field span {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #728078;
+    margin-bottom: 3px;
+}
+
+.pesanan-payment-item-field strong {
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.pesanan-empty-text {
+    color: #728078;
+    font-size: 15px;
+    margin: 0;
+    text-align: center;
+    padding: 20px 0;
+}
+
+@media (max-width: 900px) {
+    .pesanan-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pesanan-info-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 550px) {
+    .pesanan-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .pesanan-panel {
+        padding: 16px;
+    }
+}
+
+/* Panel Tindakan Pesanan */
+.pesanan-action-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.pesanan-action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.pesanan-action-wrap form {
+    margin: 0;
+}
+
+.btn-danger-action {
+    background: #faeeee;
+    color: var(--danger);
+    border: 1px solid #f2c7c7;
+    padding: 10px 18px;
+    border-radius: 11px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: .18s ease;
+}
+
+.btn-danger-action:hover {
+    background: #f8dbdb;
+    border-color: var(--danger);
+    transform: translateY(-1px);
+}
+
+.pesanan-action-note {
+    font-size: 13px;
+    color: #68736d;
+    margin: 4px 0 0;
+}
+
+.pesanan-action-closed {
+    font-size: 14px;
+    color: #68736d;
+    margin: 0;
+    font-style: italic;
+}
+

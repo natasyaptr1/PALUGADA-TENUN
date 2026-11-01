@@ -27,7 +27,7 @@
 <section class="admin-panel admin-orders-v4 admin-orders-v4-full">
     <div class="admin-panel-head admin-panel-head-inline">
         <div><span class="eyebrow">PESANAN TERBARU</span><h2>Aktivitas penjualan</h2></div>
-        <a class="text-link" href="{{ route('admin.pesanan') }}">Lihat Pesanan</a>
+        <a class="text-link" href="{{ route('admin.pesanan.index') }}">Lihat Pesanan</a>
     </div>
 
     @if($pesananTerbaru->isEmpty())
