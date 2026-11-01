@@ -42,16 +42,22 @@ class AkunController extends Controller
         return back()->with('success', 'Profil berhasil diperbarui.');
     }
 
+    
     public function pesanan(Request $request): View
     {
         $daftarPesanan = $request->user()
             ->pesanan()
-            ->with('detail.produk', 'pembayaran')
+            ->with('detail.produk.produkFoto', 'pembayaran')
+            ->whereNotIn('status_pesanan', [
+                'batal',
+                'dibatalkan',
+            ])
             ->latest('tanggal_pesanan')
             ->paginate(10);
 
         return view('pembeli.pesanan', compact('daftarPesanan'));
     }
+
 
     public function keranjang(): View
     {

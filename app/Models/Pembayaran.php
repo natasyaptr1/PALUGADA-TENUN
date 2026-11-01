@@ -17,6 +17,9 @@ class Pembayaran extends Model
         'status_pembayaran',
         'dikonfirmasi_oleh',
         'tanggal_bayar',
+        'midtrans_order_id',
+        'snap_redirect_url',
+        'snap_expires_at',
     ];
 
     protected function casts(): array
@@ -24,6 +27,8 @@ class Pembayaran extends Model
         return [
             'jumlah_bayar' => 'decimal:2',
             'tanggal_bayar' => 'datetime',
+            'snap_expires_at' => 'datetime',
+            'snap_token',
         ];
     }
 

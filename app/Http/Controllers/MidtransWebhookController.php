@@ -50,16 +50,10 @@ class MidtransWebhookController extends Controller
         $status = $data['transaction_status'];
         $fraudStatus = $data['fraud_status'] ?? null;
 
+        
         $berhasil = $data['status_code'] === '200'
-            && (
-                $status === 'settlement'
-                || (
-                    $status === 'capture'
-                    && $fraudStatus === 'accept'
-                )
-            )
-            && $fraudStatus !== 'deny'
-            && $fraudStatus !== 'challenge';
+            && in_array($status, ['settlement', 'capture'], true)
+            && ($fraudStatus === null || $fraudStatus === 'accept');
 
         $statusBaru = match (true) {
             $berhasil => 'berhasil',
@@ -112,9 +106,21 @@ class MidtransWebhookController extends Controller
 
             // Notifikasi duplikat tidak boleh memproses ulang
             // pembayaran yang sudah berhasil.
-            if ($pembayaran->status_pembayaran === 'berhasil') {
-                return 'sudah_berhasil';
-            }
+            
+        if ($pembayaran->status_pembayaran === 'berhasil') {
+            return 'sudah_berhasil';
+        }
+
+        if (
+            in_array(
+                $pembayaran->status_pembayaran,
+                ['gagal', 'kedaluwarsa'],
+                true
+            )
+            && $statusBaru === 'berhasil'
+        ) {
+            return 'perlu_peninjauan';
+        }
 
             if (
                 $pesanan->status_pesanan === 'batal'

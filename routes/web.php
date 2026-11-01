@@ -11,6 +11,8 @@ use App\Http\Controllers\AutentikasiController;
 use App\Http\Controllers\Pembeli\AkunController;
 use App\Http\Controllers\Pembeli\KeranjangController;
 use App\Http\Controllers\Pembeli\CheckoutController;
+use App\Http\Controllers\Pembeli\PembayaranController;
+use App\Http\Controllers\Pembeli\PembatalanPesananController;
 use App\Models\Produk;
 use Illuminate\Support\Facades\Route;
 
@@ -108,6 +110,14 @@ Route::middleware(['auth', 'peran:pembeli'])
 
         Route::get('/pesanan', [AkunController::class, 'pesanan'])
             ->name('pesanan');
+        
+        Route::get('/pesanan/{pesanan}/bayar',[PembayaranController::class, 'lanjutkan']
+            )->name('pesanan.bayar');   
+        
+        Route::patch(
+            '/pesanan/{pesanan}/batalkan',
+            [PembatalanPesananController::class, 'batalkan']
+        )->name('pesanan.batalkan');    
 
         // KERANJANG - FIRJA
         Route::get('/keranjang', [KeranjangController::class, 'index'])
@@ -127,6 +137,10 @@ Route::middleware(['auth', 'peran:pembeli'])
 
         Route::post('/checkout', [CheckoutController::class, 'simpan'])
             ->name('checkout.simpan');
+
+        Route::post('/keranjang/pilih-checkout',
+            [KeranjangController::class, 'pilihCheckout']
+        )->name('keranjang.pilih-checkout');    
     });
 
 // ADMIN
