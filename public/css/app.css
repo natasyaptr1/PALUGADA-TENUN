@@ -887,3 +887,111 @@ body{font-size:17px}
   .pagination-nav{flex-wrap:wrap}
 }
 
+/* ==========================================
+   SPRINT 3 PUTRI - KATALOG PRODUK
+   ========================================== */
+
+   .collection-toolbar-v4.filter-katalog-putri {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 14px;
+    align-items: center;
+}
+
+.filter-katalog-putri > .collection-search-v4 {
+    grid-column: 1;
+    min-width: 0;
+    width: 100%;
+}
+
+.filter-katalog-putri > .collection-filter-v4 {
+    grid-column: 2;
+    min-width: 0;
+    width: 100%;
+}
+
+.filter-katalog-putri .filter-harga-putri {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    min-width: 0;
+    width: 100%;
+}
+
+.filter-katalog-putri .filter-input-harga-putri {
+    display: block;
+    min-width: 0;
+    width: 100%;
+}
+
+.filter-katalog-putri .filter-input-harga-putri input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: 54px;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    border: 1px solid #ded2c1;
+    border-radius: 10px;
+    background: #fff;
+    font: inherit;
+}
+
+.filter-katalog-putri .filter-stok-putri {
+    grid-column: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: 10px;
+    width: max-content;
+    max-width: 100%;
+    cursor: pointer;
+    color: #173f32;
+    font-weight: 600;
+}
+
+.filter-katalog-putri .filter-stok-putri input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: #173f32;
+}
+
+.filter-katalog-putri > .collection-search-button {
+    grid-column: 2;
+    width: 160px;
+    max-width: 100%;
+    justify-self: start;
+}
+
+.filter-katalog-putri > .collection-reset-link {
+    grid-column: 1 / -1;
+    justify-self: start;
+}
+
+/* Tampilan HP */
+@media (max-width: 650px) {
+    .collection-toolbar-v4.filter-katalog-putri {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .filter-katalog-putri > .collection-search-v4,
+    .filter-katalog-putri > .collection-filter-v4,
+    .filter-katalog-putri .filter-harga-putri,
+    .filter-katalog-putri .filter-stok-putri,
+    .filter-katalog-putri > .collection-search-button,
+    .filter-katalog-putri > .collection-reset-link {
+        grid-column: 1;
+    }
+
+    .filter-katalog-putri .filter-harga-putri {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .filter-katalog-putri > .collection-search-button {
+        width: 100%;
+    }
+}
