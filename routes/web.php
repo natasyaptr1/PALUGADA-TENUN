@@ -193,3 +193,17 @@ Route::middleware(['auth', 'peran:penenun'])
         'pengguna' => auth()->user()->load('profilPenenun'),
     ]))
     ->name('penenun.beranda');
+
+// Endpoint JSON Ongkir untuk Pembeli
+Route::middleware(['auth', 'peran:pembeli'])
+    ->prefix('akun/ongkir')
+    ->name('pembeli.ongkir.')
+    ->group(function () {
+        Route::get('/tujuan', [\App\Http\Controllers\Pembeli\OngkirController::class, 'tujuan'])
+            ->middleware('throttle:30,1')
+            ->name('tujuan');
+
+        Route::get('/opsi', [\App\Http\Controllers\Pembeli\OngkirController::class, 'opsi'])
+            ->middleware('throttle:20,1')
+            ->name('opsi');
+    });
