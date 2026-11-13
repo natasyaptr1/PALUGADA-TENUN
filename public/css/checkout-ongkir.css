@@ -1,0 +1,255 @@
+/* Styling Integrasi Ongkos Kirim Checkout Palugada */
+
+.ongkir-pilihan-grup {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.ongkir-radio-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 2px solid #e5e0d6;
+    border-radius: 12px;
+    cursor: pointer;
+    background: #faf9f6;
+    transition: all 0.2s ease;
+}
+
+.ongkir-radio-card:hover {
+    border-color: #163f32;
+    background: #ffffff;
+}
+
+.ongkir-radio-card.active {
+    border-color: #163f32;
+    background: #f2f7f4;
+}
+
+.ongkir-radio-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+}
+
+.ongkir-radio-card input[type="radio"] {
+    margin-top: 3px;
+    accent-color: #163f32;
+}
+
+.ongkir-card-label {
+    display: block;
+    font-weight: 600;
+    color: #222;
+    font-size: 14px;
+}
+
+.ongkir-card-desc {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+/* Kotak Pencarian Tujuan */
+.ongkir-cari-wadah {
+    position: relative;
+    margin-top: 8px;
+}
+
+.ongkir-input-text {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.ongkir-input-text:focus {
+    outline: none;
+    border-color: #163f32;
+    box-shadow: 0 0 0 2px rgba(22, 63, 50, 0.15);
+}
+
+.ongkir-dropdown-hasil {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #ffffff;
+    border: 1px solid #dcd6cd;
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.ongkir-item-tujuan {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0ede8;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+    transition: background 0.15s ease;
+}
+
+.ongkir-item-tujuan:last-child {
+    border-bottom: none;
+}
+
+.ongkir-item-tujuan:hover,
+.ongkir-item-tujuan.highlight {
+    background: #f2f7f4;
+    color: #163f32;
+}
+
+/* Tujuan Terpilih Badge */
+.ongkir-tujuan-terpilih-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #eef5f1;
+    border: 1px solid #c8ded1;
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.ongkir-tujuan-terpilih-teks {
+    font-size: 13px;
+    color: #163f32;
+    font-weight: 500;
+}
+
+.ongkir-btn-ganti {
+    background: transparent;
+    border: 1px solid #163f32;
+    color: #163f32;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.ongkir-btn-ganti:hover {
+    background: #163f32;
+    color: #ffffff;
+}
+
+/* Opsi Kurir Radio Card */
+.ongkir-opsi-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.ongkir-opsi-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 2px solid #e5e0d6;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.ongkir-opsi-item:hover {
+    border-color: #163f32;
+}
+
+.ongkir-opsi-item.selected {
+    border-color: #163f32;
+    background: #f2f7f4;
+}
+
+.ongkir-opsi-kiri {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ongkir-opsi-kiri input[type="radio"] {
+    accent-color: #163f32;
+}
+
+.ongkir-opsi-kurir-nama {
+    font-weight: 600;
+    font-size: 14px;
+    color: #222;
+}
+
+.ongkir-opsi-layanan {
+    font-size: 12px;
+    color: #666;
+    margin-top: 2px;
+}
+
+.ongkir-opsi-kanan {
+    text-align: right;
+}
+
+.ongkir-opsi-biaya {
+    font-weight: 700;
+    color: #163f32;
+    font-size: 15px;
+}
+
+.ongkir-opsi-estimasi {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* Pesan Status */
+.ongkir-status-box {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+.ongkir-status-loading {
+    background: #f9f9f9;
+    color: #666;
+    border: 1px dashed #ccc;
+}
+
+.ongkir-status-error {
+    background: #ffe8e8;
+    color: #a52222;
+    border: 1px solid #f5c2c2;
+}
+
+.ongkir-status-empty {
+    background: #fff8e6;
+    color: #8a6d1c;
+    border: 1px solid #faebcc;
+}
+
+/* Ringkasan Biaya Tambahan */
+.ongkir-ringkasan-baris {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.ongkir-ringkasan-baris.total-baris {
+    border-top: 2px solid #e5e0d6;
+    margin-top: 10px;
+    padding-top: 14px;
+}
+
