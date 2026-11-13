@@ -237,7 +237,11 @@ class OngkirSkemaTest extends TestCase
         $this->assertEquals(['jne', 'jnt', 'sicepat'], $kurir);
 
         $this->assertSame(500, config('ongkir.berat_default_gram'));
-        $this->assertNull(config('ongkir.asal_id'), 'asal_id harus null jika environment kosong.');
+        if (empty(env('ONGKIR_ASAL_ID'))) {
+            $this->assertNull(config('ongkir.asal_id'), 'asal_id harus null jika environment kosong.');
+        } else {
+            $this->assertSame((string) env('ONGKIR_ASAL_ID'), (string) config('ongkir.asal_id'));
+        }
         $this->assertSame('Ambil di tempat (Palugada Bandar)', config('ongkir.label_ambil_di_tempat'));
 
         $this->assertSame(1440, config('ongkir.cache_ongkir_menit'));

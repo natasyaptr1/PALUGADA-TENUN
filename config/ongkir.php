@@ -31,5 +31,19 @@ return [
     'timeout_detik' => (int) env('ONGKIR_TIMEOUT_DETIK', 10),
 
     'label_ambil_di_tempat' => env('ONGKIR_LABEL_AMBIL', 'Ambil di tempat (Palugada Bandar)'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Aturan Pasangan Metode Pengiriman dan Metode Pembayaran
+    |--------------------------------------------------------------------------
+    |
+    | Konfigurasi ini adalah satu-satunya tempat aturan pasangan metode
+    | pengiriman dan metode pembayaran yang diizinkan dalam sistem.
+    |
+    */
+    'pembayaran_per_metode' => [
+        'ambil_di_tempat' => ['cash'],
+        'ekspedisi'       => ['midtrans'],
+    ],
 ];
 
