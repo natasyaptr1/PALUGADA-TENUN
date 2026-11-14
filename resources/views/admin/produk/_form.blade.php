@@ -21,6 +21,10 @@
     <input type="text" name="harga" class="js-currency-input" inputmode="numeric" placeholder="Contoh: 500.000" value="{{ old('harga') ? number_format((float)preg_replace('/[^0-9]/', '', (string)old('harga')), 0, ',', '.') : (isset($produk->harga) ? number_format((float)$produk->harga, 0, ',', '.') : '') }}" required>
     <small style="font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px;">Format ribuan otomatis dengan pemisah titik (contoh: 500.000).</small>
 </label>
+<label>Berat (gram)
+    <input type="number" name="berat_gram" min="1" max="100000" placeholder="Contoh: 500" value="{{ old('berat_gram', $produk->berat_gram ?? config('ongkir.berat_default_gram', 500)) }}" required>
+    <small style="font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px;">Dipakai untuk menghitung ongkos kirim. Contoh: 500 gram.</small>
+</label>
 <label class="span-2">Foto Produk (Dapat Memilih Beberapa Foto Sekaligus)
     <input type="file" name="foto[]" multiple accept="image/jpeg,image/png,image/jpg,image/webp">
     <small style="font-size:11px;color:var(--muted);font-weight:normal;margin-top:2px;">
