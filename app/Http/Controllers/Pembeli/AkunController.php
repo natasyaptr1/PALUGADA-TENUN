@@ -90,6 +90,61 @@ class AkunController extends Controller
         }
     }
 
+    /**
+     * Memeriksa status transaksi langsung ke Midtrans API (sangat berguna terutama di localhost tanpa webhook publik).
+     */
+    public function cekStatus(Request $request, \App\Models\Pesanan $pesanan, \App\Services\MidtransService $midtransService): \Illuminate\Http\JsonResponse
+    {
+        if ($pesanan->pembeli_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($pesanan->status_pesanan === 'dibayar') {
+            return response()->json(['status' => 'dibayar', 'message' => 'Pesanan sudah berstatus Dibayar.']);
+        }
+
+        try {
+            $status = \Midtrans\Transaction::status($pesanan->kode_pesanan);
+            $trxStatus = $status->transaction_status ?? null;
+            $fraudStatus = $status->fraud_status ?? null;
+
+            $berhasil = ($status->status_code ?? '') === '200'
+                && ($trxStatus === 'settlement' || ($trxStatus === 'capture' && $fraudStatus === 'accept'))
+                && $fraudStatus !== 'deny'
+                && $fraudStatus !== 'challenge';
+
+            if ($berhasil) {
+                $pembayaran = $pesanan->pembayaran()->orderByDesc('id')->first();
+                if ($pembayaran) {
+                    $pembayaran->update([
+                        'id_transaksi' => $status->transaction_id ?? $pembayaran->id_transaksi,
+                        'tipe_pembayaran' => $status->payment_type ?? $pembayaran->tipe_pembayaran,
+                        'status_pembayaran' => 'berhasil',
+                        'tanggal_bayar' => now(),
+                    ]);
+                }
+
+                $pesanan->update(['status_pesanan' => 'dibayar']);
+                \App\Events\PembayaranBerhasil::dispatch($pesanan->fresh());
+
+                return response()->json([
+                    'status' => 'dibayar',
+                    'message' => 'Pembayaran berhasil dikonfirmasi dari Midtrans!',
+                ]);
+            }
+
+            return response()->json([
+                'status' => $trxStatus ?: 'menunggu',
+                'message' => 'Status pembayaran di Midtrans: ' . ($trxStatus ?: 'menunggu pembayaran'),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Belum ada transaksi di Midtrans atau terjadi kesalahan: ' . $e->getMessage(),
+            ], 200);
+        }
+    }
+
     public function keranjang(): View
     {
         return view('pembeli.keranjang');

@@ -131,6 +131,9 @@ Route::middleware(['auth', 'peran:pembeli'])
 
         Route::post('/pesanan/{pesanan}/bayar', [AkunController::class, 'bayar'])
             ->name('pesanan.bayar');
+
+        Route::post('/pesanan/{pesanan}/cek-status', [AkunController::class, 'cekStatus'])
+            ->name('pesanan.cek-status');
     });
 
 // ADMIN
