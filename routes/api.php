@@ -3,6 +3,7 @@ use App\Http\Controllers\Api\V1\AutentikasiController;
 use App\Http\Controllers\Api\V1\PenenunController;
 use App\Http\Controllers\Api\V1\ProdukController;
 use App\Http\Controllers\Api\V1\ProduksiPenenunController;
+use App\Http\Controllers\MidtransWebhookController;
 use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function(){
     Route::get('/status',fn()=>response()->json(['status'=>'ok','layanan'=>'API Palugada v1']));
@@ -26,4 +27,8 @@ Route::prefix('v1')->group(function(){
             Route::delete('/produk/{produk}',[ProdukController::class,'destroy']);
             });
     });
+    Route::post('/midtrans/webhook', [
+        MidtransWebhookController::class,
+        'handle',
+    ]);
 });
