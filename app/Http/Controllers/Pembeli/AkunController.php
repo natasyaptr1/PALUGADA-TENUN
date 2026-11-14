@@ -53,6 +53,43 @@ class AkunController extends Controller
         return view('pembeli.pesanan', compact('daftarPesanan'));
     }
 
+    /**
+     * Membuat Snap Token Midtrans untuk pesanan pembeli yang menunggu pembayaran online.
+     */
+    public function bayar(Request $request, \App\Models\Pesanan $pesanan, \App\Services\MidtransService $midtransService): \Illuminate\Http\JsonResponse
+    {
+        if ($pesanan->pembeli_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($pesanan->status_pesanan !== 'menunggu_pembayaran') {
+            return response()->json(['message' => 'Pesanan ini tidak menunggu pembayaran.'], 422);
+        }
+
+        $pembayaran = $pesanan->pembayaran()->orderByDesc('id')->first();
+        if (!$pembayaran || $pembayaran->metode !== 'midtrans') {
+            return response()->json(['message' => 'Metode pembayaran bukan Midtrans.'], 422);
+        }
+
+        try {
+            $snapToken = $midtransService->buatSnapToken(
+                $pesanan->kode_pesanan,
+                (int) $pesanan->total,
+                $pesanan->nama_penerima ?: $request->user()->nama,
+                $request->user()->email
+            );
+
+            return response()->json([
+                'snap_token' => $snapToken,
+                'kode_pesanan' => $pesanan->kode_pesanan,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal membuat transaksi Midtrans: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function keranjang(): View
     {
         return view('pembeli.keranjang');

@@ -128,6 +128,9 @@ Route::middleware(['auth', 'peran:pembeli'])
 
         Route::post('/checkout', [CheckoutController::class, 'simpan'])
             ->name('checkout.simpan');
+
+        Route::post('/pesanan/{pesanan}/bayar', [AkunController::class, 'bayar'])
+            ->name('pesanan.bayar');
     });
 
 // ADMIN
