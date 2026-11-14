@@ -1181,4 +1181,160 @@ class AdminPesananTest extends TestCase
         $this->assertEquals(20, $stok->fresh()->jumlah_stok);
         $this->assertEquals($mutasiAwal, MutasiStok::count());
     }
+
+    public function test_detail_ekspedisi_menampilkan_kurir_layanan_estimasi_tujuan_berat_subtotal_ongkir_dan_total(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-EXP-001',
+            'subtotal' => 250000,
+            'ongkir' => 18000,
+            'total' => 268000,
+            'metode_pengiriman' => 'ekspedisi',
+            'kurir_kode' => 'jne',
+            'kurir_nama' => 'JNE Express',
+            'layanan_kurir' => 'REG',
+            'estimasi_kirim' => '2-3 hari',
+            'tujuan_id' => '34381',
+            'tujuan_label' => 'Kec. Lowokwaru, Kota Malang, Jawa Timur',
+            'berat_total_gram' => 900,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Ekspedisi');
+        $response->assertSee('JNE Express');
+        $response->assertSee('REG');
+        $response->assertSee('2-3 hari');
+        $response->assertSee('Kec. Lowokwaru, Kota Malang, Jawa Timur');
+        $response->assertSee('900 g');
+        $response->assertSee('Subtotal');
+        $response->assertSee('Rp 250.000');
+        $response->assertSee('Ongkos Kirim');
+        $response->assertSee('Rp 18.000');
+        $response->assertSee('Rp 268.000');
+    }
+
+    public function test_detail_ambil_di_tempat_menampilkan_teks_ambil_di_tempat_tanpa_kurir(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-PICKUP-001',
+            'subtotal' => 200000,
+            'ongkir' => 0,
+            'total' => 200000,
+            'metode_pengiriman' => 'ambil_di_tempat',
+            'kurir_kode' => null,
+            'kurir_nama' => null,
+            'layanan_kurir' => null,
+            'estimasi_kirim' => null,
+            'tujuan_id' => null,
+            'tujuan_label' => null,
+            'berat_total_gram' => 500,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Ambil di Tempat');
+        $response->assertSee('Pembeli mengambil pesanan di tempat');
+        $response->assertDontSee('JNE');
+        $response->assertDontSee('Estimasi Kirim');
+    }
+
+    public function test_pesanan_lama_dengan_kolom_baru_null_tetap_terbuka_tanpa_error(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-LEGACY-001',
+            'total' => 150000,
+            'subtotal' => null,
+            'metode_pengiriman' => null,
+            'kurir_kode' => null,
+            'kurir_nama' => null,
+            'layanan_kurir' => null,
+            'estimasi_kirim' => null,
+            'tujuan_id' => null,
+            'tujuan_label' => null,
+            'berat_total_gram' => null,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('ORD-LEGACY-001');
+        $response->assertSee('Tidak tercatat (pesanan lama)');
+        $response->assertSee('Rp 150.000');
+        $response->assertDontSee('Ongkos Kirim');
+    }
+
+    public function test_daftar_menampilkan_termasuk_ongkir_hanya_saat_ongkir_lebih_dari_nol(): void
+    {
+        $this->buatPesanan([
+            'kode_pesanan' => 'ORD-ONGKIR-ADA',
+            'subtotal' => 100000,
+            'ongkir' => 15000,
+            'total' => 115000,
+        ]);
+
+        $this->buatPesanan([
+            'kode_pesanan' => 'ORD-ONGKIR-NOL',
+            'subtotal' => 100000,
+            'ongkir' => 0,
+            'total' => 100000,
+        ]);
+
+        $this->buatPesanan([
+            'kode_pesanan' => 'ORD-ONGKIR-DEFAULT',
+            'total' => 80000,
+            'subtotal' => null,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.index'));
+
+        $response->assertOk();
+        $response->assertSee('Termasuk ongkir Rp 15.000');
+        $response->assertDontSee('Termasuk ongkir Rp 0');
+    }
+
+    public function test_data_berisi_tag_html_di_tujuan_label_tampil_ter_escape(): void
+    {
+        $labelBerbahaya = '<b>Kota Kediri</b><script>alert("xss")</script>';
+
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-XSS-LABEL',
+            'metode_pengiriman' => 'ekspedisi',
+            'kurir_nama' => 'POS Indonesia',
+            'layanan_kurir' => 'Kilat',
+            'tujuan_label' => $labelBerbahaya,
+            'subtotal' => 200000,
+            'ongkir' => 20000,
+            'total' => 220000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee(e($labelBerbahaya), false);
+        $response->assertDontSee($labelBerbahaya, false);
+    }
+
+    public function test_detail_ekspedisi_nilai_kosong_tampil_strip(): void
+    {
+        $pesanan = $this->buatPesanan([
+            'kode_pesanan' => 'ORD-EXP-EMPTY',
+            'metode_pengiriman' => 'ekspedisi',
+            'kurir_nama' => null,
+            'layanan_kurir' => null,
+            'estimasi_kirim' => null,
+            'tujuan_label' => null,
+            'berat_total_gram' => null,
+            'subtotal' => 100000,
+            'ongkir' => 10000,
+            'total' => 110000,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.pesanan.show', $pesanan));
+
+        $response->assertOk();
+        $response->assertSee('Ekspedisi');
+    }
 }

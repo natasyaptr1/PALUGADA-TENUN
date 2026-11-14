@@ -131,6 +131,13 @@
     white-space: nowrap;
 }
 
+.pesanan-ongkir-note {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
 /* Kolom Aksi Tabel Pesanan */
 td.aksi-pesanan {
     text-align: right;

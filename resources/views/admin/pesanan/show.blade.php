@@ -33,10 +33,25 @@
                     </span>
                 </div>
             </div>
-            <div class="pesanan-info-box">
-                <span class="pesanan-info-label">Total Pesanan</span>
-                <strong style="color: var(--green-950);">{{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}</strong>
-            </div>
+            @if($pesanan->subtotal !== null)
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Subtotal</span>
+                    <strong>{{ \App\Support\LabelPesanan::formatRupiah($pesanan->subtotal) }}</strong>
+                </div>
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Ongkos Kirim</span>
+                    <strong>{{ \App\Support\LabelPesanan::formatRupiah($pesanan->ongkir) }}</strong>
+                </div>
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Total</span>
+                    <strong style="color: var(--green-950);">{{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}</strong>
+                </div>
+            @else
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Total</span>
+                    <strong style="color: var(--green-950);">{{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}</strong>
+                </div>
+            @endif
         </div>
     </section>
 
@@ -104,10 +119,10 @@
         @endif
     </section>
 
-    {{-- Panel Pembeli dan Pengiriman --}}
+    {{-- Panel Pembeli dan Alamat --}}
     <section class="pesanan-panel">
         <div class="pesanan-panel-head">
-            <h2>Pembeli dan Pengiriman</h2>
+            <h2>Pembeli dan Alamat</h2>
         </div>
         <div class="pesanan-info-grid-2">
             <div class="pesanan-info-box">
@@ -127,6 +142,62 @@
                 <p class="pesanan-address-text">{!! nl2br(e($pesanan->alamat_pengiriman)) !!}</p>
             </div>
         </div>
+    </section>
+
+    {{-- Panel Pengiriman --}}
+    <section class="pesanan-panel">
+        <div class="pesanan-panel-head">
+            <h2>Pengiriman</h2>
+        </div>
+        @php
+            $metodePengirimanVal = $pesanan->metode_pengiriman instanceof \App\Enums\MetodePengiriman
+                ? $pesanan->metode_pengiriman->value
+                : $pesanan->metode_pengiriman;
+            $metodeEnum = $metodePengirimanVal ? \App\Enums\MetodePengiriman::tryFrom($metodePengirimanVal) : null;
+            $metodeLabel = $metodeEnum ? $metodeEnum->label() : ($metodePengirimanVal ? ucfirst(str_replace('_', ' ', $metodePengirimanVal)) : 'Tidak tercatat (pesanan lama)');
+            $isEkspedisi = $metodePengirimanVal === \App\Enums\MetodePengiriman::Ekspedisi->value;
+            $isAmbilDiTempat = $metodePengirimanVal === \App\Enums\MetodePengiriman::AmbilDiTempat->value;
+        @endphp
+
+        <div class="pesanan-info-grid-2">
+            <div class="pesanan-info-box">
+                <span class="pesanan-info-label">Metode Pengiriman</span>
+                <strong>{{ $metodeLabel }}</strong>
+            </div>
+            @if($isEkspedisi)
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Berat Total</span>
+                    <strong>{{ $pesanan->berat_total_gram ? $pesanan->berat_total_gram . ' g' : '-' }}</strong>
+                </div>
+            @endif
+        </div>
+
+        @if($isEkspedisi)
+            <div class="pesanan-info-grid" style="margin-top: 14px;">
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Kurir</span>
+                    <strong>{{ $pesanan->kurir_nama ?: '-' }}</strong>
+                </div>
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Layanan</span>
+                    <strong>{{ $pesanan->layanan_kurir ?: '-' }}</strong>
+                </div>
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Estimasi</span>
+                    <strong>{{ $pesanan->estimasi_kirim ?: '-' }}</strong>
+                </div>
+                <div class="pesanan-info-box">
+                    <span class="pesanan-info-label">Tujuan</span>
+                    <strong>{{ $pesanan->tujuan_label ?: '-' }}</strong>
+                </div>
+            </div>
+        @elseif($isAmbilDiTempat)
+            <div style="margin-top: 14px;">
+                <div class="pesanan-info-box">
+                    <p class="pesanan-address-text">Pembeli mengambil pesanan di tempat</p>
+                </div>
+            </div>
+        @endif
     </section>
 
     {{-- Panel Item Pesanan --}}
@@ -183,6 +254,20 @@
                 @endforelse
                 </tbody>
                 <tfoot>
+                    @if($pesanan->subtotal !== null)
+                        <tr>
+                            <th colspan="3" style="text-align: right; font-weight: 700;">Subtotal:</th>
+                            <th style="text-align: right; font-weight: 700;">
+                                {{ \App\Support\LabelPesanan::formatRupiah($pesanan->subtotal) }}
+                            </th>
+                        </tr>
+                        <tr>
+                            <th colspan="3" style="text-align: right; font-weight: 700;">Ongkos Kirim:</th>
+                            <th style="text-align: right; font-weight: 700;">
+                                {{ \App\Support\LabelPesanan::formatRupiah($pesanan->ongkir) }}
+                            </th>
+                        </tr>
+                    @endif
                     <tr>
                         <th colspan="3" style="text-align: right; font-weight: 700;">Total:</th>
                         <th style="text-align: right; font-weight: 800; font-size: 16px; color: var(--green-950);">
