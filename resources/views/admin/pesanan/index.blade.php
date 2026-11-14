@@ -60,15 +60,15 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 50px;">No</th>
+                <th style="width: 40px; text-align: center;">No</th>
                 <th>Kode Pesanan</th>
                 <th>Pembeli</th>
                 <th>Tanggal</th>
-                <th style="text-align: center; width: 90px;">Item</th>
+                <th style="text-align: center; width: 70px;">Item</th>
                 <th>Total</th>
                 <th>Pembayaran</th>
                 <th>Status Pesanan</th>
-                <th style="width: 80px; text-align: right;">Aksi</th>
+                <th style="width: 60px; text-align: right;">Aksi</th>
             </tr>
         </thead>
         <tbody>
@@ -77,7 +77,7 @@
                 $pembayaranTerbaru = $pesanan->pembayaran->first();
             @endphp
             <tr>
-                <td>{{ $daftarPesanan->firstItem() ? $daftarPesanan->firstItem() + $index : $index + 1 }}</td>
+                <td style="text-align: center;">{{ $daftarPesanan->firstItem() ? $daftarPesanan->firstItem() + $index : $index + 1 }}</td>
                 <td>
                     <a href="{{ route('admin.pesanan.show', $pesanan) }}">
                         <strong>{{ $pesanan->kode_pesanan }}</strong>
