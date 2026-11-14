@@ -102,6 +102,10 @@ class ProdukController extends Controller
         $jenisModel = JenisProduk::find($data['jenis_produk_id']);
         $data['jenis'] = $jenisModel?->nama_jenis ?? '';
 
+        if (!array_key_exists('berat_gram', $data)) {
+            $data['berat_gram'] = $produk->berat_gram;
+        }
+
         $uploadedFiles = [];
         if ($request->hasFile('foto')) {
             $files = $request->file('foto');
@@ -174,7 +178,7 @@ class ProdukController extends Controller
             $request->merge(['harga' => $rawHarga !== '' ? $rawHarga : null]);
         }
 
-        return $request->validate([
+        $rules = [
             'kode_produk'=>['nullable','string','max:50','unique:produk,kode_produk'.($produkId?','.$produkId:'')],
             'nama_produk'=>['required','string','max:100'],
             'jenis_produk_id'=>['required','exists:jenis_produk,id'],
@@ -186,7 +190,15 @@ class ProdukController extends Controller
             'foto'=>['nullable'],
             'foto.*'=>['image','mimes:jpg,jpeg,png,webp','max:2048'],
             'status'=>['required','in:aktif,nonaktif'],
-        ], [
+        ];
+
+        if ($produkId !== null && !$request->has('berat_gram')) {
+            // Update tanpa berat_gram tidak boleh gagal atau mereset berat
+        } else {
+            $rules['berat_gram'] = ['required', 'integer', 'min:1', 'max:100000'];
+        }
+
+        return $request->validate($rules, [
             'nama_produk.required' => 'Nama produk wajib diisi.',
             'jenis_produk_id.required' => 'Jenis produk wajib dipilih.',
             'jenis_produk_id.exists' => 'Jenis produk yang dipilih tidak valid.',
@@ -194,6 +206,10 @@ class ProdukController extends Controller
             'harga.numeric' => 'Harga produk harus berupa angka.',
             'harga.min' => 'Harga produk minimal Rp 0.',
             'status.required' => 'Status produk wajib dipilih.',
+            'berat_gram.required' => 'Berat produk wajib diisi.',
+            'berat_gram.integer' => 'Berat produk harus berupa angka bulat (gram).',
+            'berat_gram.min' => 'Berat produk minimal 1 gram.',
+            'berat_gram.max' => 'Berat produk maksimal 100.000 gram.',
             'foto.*.image' => 'File yang diunggah harus berupa gambar.',
             'foto.*.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
             'foto.*.max' => 'Ukuran setiap file foto maksimal 2MB.',
