@@ -25,4 +25,12 @@ class Pengguna extends Authenticatable
     public function keranjang() { return $this->hasMany(Keranjang::class, 'pembeli_id'); }
     public function pesanan() { return $this->hasMany(Pesanan::class, 'pembeli_id'); }
     public function pembayaranDikonfirmasi() { return $this->hasMany(Pembayaran::class, 'dikonfirmasi_oleh'); }
+
+    public function preferensi()
+    {
+        return $this->hasMany(
+            PreferensiPengguna::class,
+            'pengguna_id'
+        );
+    }
 }

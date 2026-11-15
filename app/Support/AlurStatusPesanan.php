@@ -11,7 +11,6 @@ class AlurStatusPesanan
     public const AKSI_VALID = [
         self::AKSI_PROSES,
         self::AKSI_SELESAI,
-        self::AKSI_BATALKAN,
     ];
 
     /**
@@ -33,14 +32,6 @@ class AlurStatusPesanan
             'kelas_tombol' => 'btn btn-primary',
             'pesan_sukses' => 'Pesanan ditandai selesai.',
             'format_konfirmasi' => 'Apakah Anda yakin ingin menandai pesanan %s selesai?',
-        ],
-        self::AKSI_BATALKAN => [
-            'status_asal' => 'menunggu_pembayaran',
-            'status_tujuan' => 'batal',
-            'label_tombol' => 'Batalkan Pesanan',
-            'kelas_tombol' => 'btn btn-danger-action',
-            'pesan_sukses' => 'Pesanan berhasil dibatalkan.',
-            'format_konfirmasi' => 'Apakah Anda yakin ingin membatalkan pesanan %s?',
         ],
     ];
 

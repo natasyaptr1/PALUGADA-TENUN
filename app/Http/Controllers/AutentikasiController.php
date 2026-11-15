@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pengguna;
+use App\Models\Produk;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AutentikasiController extends Controller
 {
+    // ==============================
+    // LOGIN
+    // ==============================
+
     public function tampilMasuk(): View
     {
         return view('autentikasi.masuk');
@@ -29,19 +35,27 @@ class AutentikasiController extends Controller
 
         $pengguna = Pengguna::where('email', $data['email'])->first();
 
-        if (!$pengguna || !Hash::check($data['kata_sandi'], $pengguna->kata_sandi)) {
+        if (!$pengguna || !Hash::check(
+            $data['kata_sandi'],
+            $pengguna->kata_sandi
+        )) {
             return back()
-                ->withErrors(['email' => 'Email atau kata sandi tidak sesuai.'])
+                ->withErrors([
+                    'email' => 'Email atau kata sandi tidak sesuai.',
+                ])
                 ->onlyInput('email');
         }
 
         if ($pengguna->status !== 'aktif') {
             return back()
-                ->withErrors(['email' => 'Akun sedang nonaktif. Silakan hubungi administrator.'])
+                ->withErrors([
+                    'email' => 'Akun sedang nonaktif. Silakan hubungi administrator.',
+                ])
                 ->onlyInput('email');
         }
 
         Auth::login($pengguna, $request->boolean('ingat'));
+
         $request->session()->regenerate();
 
         return match ($pengguna->peran) {
@@ -51,6 +65,10 @@ class AutentikasiController extends Controller
         };
     }
 
+    // ==============================
+    // REGISTRASI AKUN
+    // ==============================
+
     public function tampilDaftar(): View
     {
         return view('autentikasi.daftar');
@@ -58,7 +76,9 @@ class AutentikasiController extends Controller
 
     public function daftar(Request $request): RedirectResponse
     {
-        $nomorMasukan = trim((string) $request->input('no_hp', ''));
+        $nomorMasukan = trim(
+            (string) $request->input('no_hp', '')
+        );
 
         if ($nomorMasukan !== '') {
             $angka = preg_replace('/\D+/', '', $nomorMasukan);
@@ -79,10 +99,28 @@ class AutentikasiController extends Controller
         }
 
         $data = $request->validate([
-            'nama' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'max:120', 'unique:pengguna,email'],
-            'no_hp' => ['nullable', 'string', 'regex:/^\+628[0-9]{8,13}$/'],
-            'kata_sandi' => ['required', 'string', 'min:8', 'confirmed'],
+            'nama' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'email' => [
+                'required',
+                'email',
+                'max:120',
+                'unique:pengguna,email',
+            ],
+            'no_hp' => [
+                'nullable',
+                'string',
+                'regex:/^\+628[0-9]{8,13}$/',
+            ],
+            'kata_sandi' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+            ],
         ], [
             'nama.required' => 'Nama wajib diisi.',
             'email.required' => 'Email wajib diisi.',
@@ -94,7 +132,8 @@ class AutentikasiController extends Controller
             'kata_sandi.min' => 'Kata sandi minimal 8 karakter.',
         ]);
 
-        Pengguna::create([
+        // Simpan akun pembeli terlebih dahulu
+        $pengguna = Pengguna::create([
             'nama' => $data['nama'],
             'email' => $data['email'],
             'no_hp' => $data['no_hp'] ?? null,
@@ -103,14 +142,164 @@ class AutentikasiController extends Controller
             'status' => 'aktif',
         ]);
 
+        // Simpan ID akun baru di session sementara
+        $request->session()->put(
+            'preferensi_pendaftaran_pengguna_id',
+            $pengguna->id
+        );
+
+        // Arahkan ke halaman pemilihan kategori
+        return redirect()->route('daftar.preferensi');
+    }
+
+    // ==============================
+    // HALAMAN PREFERENSI
+    // ==============================
+
+    public function tampilPreferensi(
+        Request $request
+    ): View|RedirectResponse {
+
+        $penggunaId = $request->session()->get(
+            'preferensi_pendaftaran_pengguna_id'
+        );
+
+        if (
+            !$penggunaId ||
+            !Pengguna::whereKey($penggunaId)
+                ->where('peran', 'pembeli')
+                ->exists()
+        ) {
+            return redirect()->route('daftar');
+        }
+
+        // Ambil kategori produk aktif dari database
+        $kategoriProduk = Produk::query()
+            ->where('status', 'aktif')
+            ->whereNotNull('jenis')
+            ->where('jenis', '!=', '')
+            ->where('jenis', 'not like', 'AES1:%')
+            ->distinct()
+            ->orderBy('jenis')
+            ->pluck('jenis');
+
+        return view(
+            'autentikasi.preferensi',
+            compact('kategoriProduk')
+        );
+    }
+
+    // ==============================
+    // SIMPAN PREFERENSI
+    // ==============================
+
+    public function simpanPreferensi(
+        Request $request
+    ): RedirectResponse {
+
+        $penggunaId = $request->session()->get(
+            'preferensi_pendaftaran_pengguna_id'
+        );
+
+        $pengguna = $penggunaId
+            ? Pengguna::whereKey($penggunaId)
+                ->where('peran', 'pembeli')
+                ->first()
+            : null;
+
+        if (!$pengguna) {
+            return redirect()->route('daftar');
+        }
+
+        // Daftar kategori yang boleh dipilih
+        $kategoriTersedia = Produk::query()
+            ->where('status', 'aktif')
+            ->whereNotNull('jenis')
+            ->where('jenis', '!=', '')
+            ->where('jenis', 'not like', 'AES1:%')
+            ->distinct()
+            ->pluck('jenis')
+            ->all();
+
+        $data = $request->validate([
+            'preferensi' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+            'preferensi.*' => [
+                'required',
+                'string',
+                'distinct',
+                Rule::in($kategoriTersedia),
+            ],
+        ], [
+            'preferensi.required' => 'Pilih minimal satu kategori atau tekan Lewati.',
+            'preferensi.min' => 'Pilih minimal satu kategori.',
+            'preferensi.*.in' => 'Kategori yang dipilih tidak tersedia.',
+        ]);
+
+        // Simpan kategori ke tabel preferensi_pengguna
+        foreach ($data['preferensi'] as $kategori) {
+            $pengguna->preferensi()->firstOrCreate([
+                'kategori' => $kategori,
+            ]);
+        }
+
+        // Hapus session sementara setelah selesai
+        $request->session()->forget(
+            'preferensi_pendaftaran_pengguna_id'
+        );
+
         return redirect()
             ->route('masuk')
-            ->with('success', 'Registrasi berhasil. Silakan masuk menggunakan akun baru.');
+            ->with(
+                'success',
+                'Registrasi berhasil dan preferensi tersimpan. Silakan masuk.'
+            );
     }
+
+    // ==============================
+    // LEWATI PREFERENSI
+    // ==============================
+
+    public function lewatiPreferensi(
+        Request $request
+    ): RedirectResponse {
+
+        $penggunaId = $request->session()->get(
+            'preferensi_pendaftaran_pengguna_id'
+        );
+
+        if (
+            !$penggunaId ||
+            !Pengguna::whereKey($penggunaId)
+                ->where('peran', 'pembeli')
+                ->exists()
+        ) {
+            return redirect()->route('daftar');
+        }
+
+        $request->session()->forget(
+            'preferensi_pendaftaran_pengguna_id'
+        );
+
+        return redirect()
+            ->route('masuk')
+            ->with(
+                'success',
+                'Registrasi berhasil. Silakan masuk menggunakan akun baru.'
+            );
+    }
+
+    // ==============================
+    // LOGOUT
+    // ==============================
 
     public function keluar(Request $request): RedirectResponse
     {
         Auth::logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

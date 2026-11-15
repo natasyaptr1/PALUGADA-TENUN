@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Events\PembayaranBerhasil;
 use App\Models\Pembayaran;
 use App\Models\Pesanan;
 use Illuminate\Http\JsonResponse;
@@ -50,7 +50,7 @@ class MidtransWebhookController extends Controller
         $status = $data['transaction_status'];
         $fraudStatus = $data['fraud_status'] ?? null;
 
-        
+
         $berhasil = $data['status_code'] === '200'
             && in_array($status, ['settlement', 'capture'], true)
             && ($fraudStatus === null || $fraudStatus === 'accept');
@@ -106,7 +106,7 @@ class MidtransWebhookController extends Controller
 
             // Notifikasi duplikat tidak boleh memproses ulang
             // pembayaran yang sudah berhasil.
-            
+
         if ($pembayaran->status_pembayaran === 'berhasil') {
             return 'sudah_berhasil';
         }
@@ -157,6 +157,10 @@ class MidtransWebhookController extends Controller
                 $pesanan->update([
                     'status_pesanan' => 'dibayar',
                 ]);
+
+                PembayaranBerhasil::dispatch(
+                    $pesanan->fresh()
+                );
             }
 
             return 'diproses';

@@ -12,30 +12,23 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PesananController extends Controller
 {
     /**
-     * Menampilkan daftar pesanan admin dengan pencarian, filter, kartu ringkasan, dan pagination.
+     * Menampilkan daftar pesanan Admin dengan pencarian,
+     * filter status, dan pagination tanpa kartu statistik.
      */
     public function index(Request $request): View
     {
-        // 4 kartu ringkasan: dihitung dari SEMUA pesanan dengan satu query agregat (tidak terpengaruh filter)
-        $ringkasan = Pesanan::toBase()
-            ->selectRaw("
-                COUNT(CASE WHEN status_pesanan = 'menunggu_pembayaran' THEN 1 END) as menunggu_pembayaran,
-                COUNT(CASE WHEN status_pesanan = 'dibayar' THEN 1 END) as dibayar,
-                COUNT(CASE WHEN status_pesanan = 'diproses' THEN 1 END) as diproses,
-                COUNT(CASE WHEN status_pesanan = 'selesai' THEN 1 END) as selesai
-            ")
-            ->first();
-
         $cari = trim((string) $request->input('cari'));
         $statusInput = (string) $request->input('status');
         $statusValid = LabelPesanan::normalisasiStatusFilter($statusInput);
 
         $daftarPesanan = Pesanan::query()
+            ->whereNull('disembunyikan_admin_pada')
             ->with([
                 'pembeli',
                 'pembayaran' => function ($q) {
@@ -57,10 +50,14 @@ class PesananController extends Controller
             })
             ->orderByDesc('tanggal_pesanan')
             ->orderByDesc('id')
-            ->paginate(10)
+            ->paginate(5)
             ->withQueryString();
 
-        return view('admin.pesanan.index', compact('daftarPesanan', 'ringkasan', 'cari', 'statusInput'));
+        return view('admin.pesanan.index', compact(
+            'daftarPesanan',
+            'cari',
+            'statusInput'
+        ));
     }
 
     /**
@@ -82,26 +79,47 @@ class PesananController extends Controller
     }
 
     /**
-     * Memperbarui status operasional pesanan (proses, selesai, batalkan).
+     * Memperbarui status operasional pesanan.
+     * Admin hanya boleh memproses dan menyelesaikan pesanan.
      */
     public function ubahStatus(Request $request, Pesanan $pesanan): RedirectResponse
     {
         $request->validate([
-            'aksi' => ['required', 'string', 'in:' . implode(',', AlurStatusPesanan::AKSI_VALID)],
+            'aksi' => [
+                'required',
+                'string',
+                Rule::in([
+                    AlurStatusPesanan::AKSI_PROSES,
+                    AlurStatusPesanan::AKSI_SELESAI,
+                ]),
+            ],
         ], [
             'aksi.required' => 'Aksi status wajib dipilih.',
             'aksi.in' => 'Aksi yang dipilih tidak valid.',
         ]);
 
         $aksi = (string) $request->input('aksi');
+
         $berhasil = false;
         $pesanSukses = '';
 
-        DB::transaction(function () use ($pesanan, $aksi, &$berhasil, &$pesanSukses) {
+        DB::transaction(function () use (
+            $pesanan,
+            $aksi,
+            &$berhasil,
+            &$pesanSukses
+        ) {
             /** @var Pesanan|null $pesananTerkunci */
-            $pesananTerkunci = Pesanan::lockForUpdate()->find($pesanan->id);
+            $pesananTerkunci = Pesanan::lockForUpdate()
+                ->find($pesanan->id);
 
-            if (!$pesananTerkunci || !AlurStatusPesanan::boleh($aksi, $pesananTerkunci->status_pesanan)) {
+            if (
+                !$pesananTerkunci
+                || !AlurStatusPesanan::boleh(
+                    $aksi,
+                    $pesananTerkunci->status_pesanan
+                )
+            ) {
                 return;
             }
 
@@ -110,12 +128,6 @@ class PesananController extends Controller
 
             $pesananTerkunci->status_pesanan = $statusBaru;
             $pesananTerkunci->save();
-
-            if ($aksi === AlurStatusPesanan::AKSI_BATALKAN) {
-                $pesananTerkunci->pembayaran()
-                    ->where('status_pembayaran', 'menunggu')
-                    ->update(['status_pembayaran' => 'gagal']);
-            }
 
             Log::info('Status operasional pesanan diubah', [
                 'pesanan_id' => $pesananTerkunci->id,
@@ -131,7 +143,10 @@ class PesananController extends Controller
         if (!$berhasil) {
             return redirect()
                 ->route('admin.pesanan.show', $pesanan)
-                ->with('error', 'Status pesanan sudah berubah atau aksi tidak diizinkan. Muat ulang halaman.');
+                ->with(
+                    'error',
+                    'Status pesanan sudah berubah atau aksi tidak diizinkan. Muat ulang halaman.'
+                );
         }
 
         return redirect()
@@ -140,18 +155,25 @@ class PesananController extends Controller
     }
 
     /**
-     * Mengonfirmasi pembayaran cash pesanan oleh admin.
+     * Mengonfirmasi pembayaran Cash pesanan oleh Admin.
      */
     public function konfirmasiPembayaran(Pesanan $pesanan): RedirectResponse
     {
         $pesanGagalPrekondisi = null;
 
         try {
-            DB::transaction(function () use ($pesanan, &$pesanGagalPrekondisi) {
+            DB::transaction(function () use (
+                $pesanan,
+                &$pesanGagalPrekondisi
+            ) {
                 /** @var Pesanan|null $pesananTerkunci */
-                $pesananTerkunci = Pesanan::lockForUpdate()->find($pesanan->id);
+                $pesananTerkunci = Pesanan::lockForUpdate()
+                    ->find($pesanan->id);
 
-                if (!$pesananTerkunci || $pesananTerkunci->status_pesanan !== 'menunggu_pembayaran') {
+                if (
+                    !$pesananTerkunci
+                    || $pesananTerkunci->status_pesanan !== 'menunggu_pembayaran'
+                ) {
                     $pesanGagalPrekondisi = 'Pesanan ini tidak menunggu pembayaran.';
                     return;
                 }
@@ -162,16 +184,33 @@ class PesananController extends Controller
                     ->lockForUpdate()
                     ->first();
 
-                if (!$pembayaranTerbaru || $pembayaranTerbaru->metode !== 'cash' || $pembayaranTerbaru->status_pembayaran !== 'menunggu') {
-                    $pesanGagalPrekondisi = 'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.';
+                if (
+                    !$pembayaranTerbaru
+                    || $pembayaranTerbaru->metode !== 'cash'
+                    || $pembayaranTerbaru->status_pembayaran !== 'menunggu'
+                ) {
+                    $pesanGagalPrekondisi =
+                        'Pembayaran terbaru bukan pembayaran Cash yang menunggu konfirmasi.';
                     return;
                 }
 
-                $jumlahBayarFormat = number_format((float) $pembayaranTerbaru->jumlah_bayar, 2, '.', '');
-                $totalPesananFormat = number_format((float) $pesananTerkunci->total, 2, '.', '');
+                $jumlahBayarFormat = number_format(
+                    (float) $pembayaranTerbaru->jumlah_bayar,
+                    2,
+                    '.',
+                    ''
+                );
+
+                $totalPesananFormat = number_format(
+                    (float) $pesananTerkunci->total,
+                    2,
+                    '.',
+                    ''
+                );
 
                 if ($jumlahBayarFormat !== $totalPesananFormat) {
-                    $pesanGagalPrekondisi = 'Jumlah pembayaran tidak sesuai dengan total pesanan.';
+                    $pesanGagalPrekondisi =
+                        'Jumlah pembayaran tidak sesuai dengan total pesanan.';
                     return;
                 }
 
@@ -185,7 +224,7 @@ class PesananController extends Controller
                 $pesananTerkunci->status_pesanan = 'dibayar';
                 $pesananTerkunci->save();
 
-                // Panggil event sinkron di dalam transaksi
+                // Memicu pengurangan stok melalui listener yang sudah ada
                 PembayaranBerhasil::dispatch($pesananTerkunci->fresh());
 
                 Log::info('Pembayaran Cash pesanan berhasil dikonfirmasi', [
@@ -200,14 +239,22 @@ class PesananController extends Controller
                 'error' => $e->getMessage(),
             ]);
 
-            $isBusiness = !($e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException || $e instanceof \Error);
+            $isBusiness = !(
+                $e instanceof \Illuminate\Database\QueryException
+                || $e instanceof \PDOException
+                || $e instanceof \Error
+            );
+
             $pesanSingkat = $isBusiness && !empty($e->getMessage())
                 ? rtrim($e->getMessage(), '.')
                 : 'Terjadi kesalahan sistem';
 
             return redirect()
                 ->route('admin.pesanan.show', $pesanan)
-                ->with('error', "Konfirmasi gagal diproses. Tidak ada perubahan yang disimpan: {$pesanSingkat}.");
+                ->with(
+                    'error',
+                    "Konfirmasi gagal diproses. Tidak ada perubahan yang disimpan: {$pesanSingkat}."
+                );
         }
 
         if ($pesanGagalPrekondisi !== null) {
@@ -218,6 +265,69 @@ class PesananController extends Controller
 
         return redirect()
             ->route('admin.pesanan.show', $pesanan)
-            ->with('success', 'Pembayaran Cash berhasil dikonfirmasi. Pesanan berstatus Dibayar.');
+            ->with(
+                'success',
+                'Pembayaran Cash berhasil dikonfirmasi. Pesanan berstatus Dibayar.'
+            );
+    }
+
+    /**
+     * Menyembunyikan pesanan batal dari daftar Admin.
+     * Data transaksi tidak dihapus permanen.
+     */
+    public function destroy(Pesanan $pesanan): RedirectResponse
+    {
+        $berhasil = DB::transaction(function () use ($pesanan) {
+            $pesananTerkunci = Pesanan::query()
+                ->whereKey($pesanan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (
+                $pesananTerkunci->status_pesanan !== 'batal'
+                || $pesananTerkunci->disembunyikan_admin_pada !== null
+            ) {
+                return false;
+            }
+
+            // Jangan sembunyikan pesanan dengan pembayaran
+            // yang masih menunggu atau sudah berhasil.
+            $pembayaranAktif = $pesananTerkunci->pembayaran()
+                ->whereIn('status_pembayaran', [
+                    'menunggu',
+                    'berhasil',
+                ])
+                ->exists();
+
+            if ($pembayaranAktif) {
+                return false;
+            }
+
+            $pesananTerkunci->disembunyikan_admin_pada = now();
+            $pesananTerkunci->save();
+
+            Log::info('Pesanan disembunyikan dari daftar Admin', [
+                'pesanan_id' => $pesananTerkunci->id,
+                'admin_id' => auth()->id(),
+            ]);
+
+            return true;
+        });
+
+        if (!$berhasil) {
+            return redirect()
+                ->route('admin.pesanan.index')
+                ->with(
+                    'error',
+                    'Pesanan tidak dapat dihapus. Hanya pesanan batal tanpa pembayaran aktif yang diperbolehkan.'
+                );
+        }
+
+        return redirect()
+            ->route('admin.pesanan.index')
+            ->with(
+                'success',
+                'Pesanan berhasil dihapus dari daftar Admin.'
+            );
     }
 }

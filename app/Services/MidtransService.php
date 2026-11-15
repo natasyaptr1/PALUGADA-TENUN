@@ -36,6 +36,21 @@ class MidtransService
                 'first_name' => $namaPembeli,
                 'email' => $emailPembeli,
             ],
+            'callbacks' => [
+                'finish' => route('pembeli.pesanan'),
+                'error' => route('pembeli.pesanan'),
+            ],
+            'expiry' => [
+                'start_time' => now()
+                    ->timezone('Asia/Jakarta')
+                    ->format('Y-m-d H:i:s O'),
+                'unit' => 'day',
+                'duration' => 1,
+            ],
+            'page_expiry' => [
+                'unit' => 'day',
+                'duration' => 1,
+            ],
         ]);
     }
 

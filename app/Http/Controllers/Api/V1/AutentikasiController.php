@@ -14,6 +14,7 @@ class AutentikasiController extends Controller {
             'kata_sandi'=>['required','string','min:8','confirmed'],
             'nama_perangkat'=>['nullable','string','max:80'],
         ], [
+
             'nama.required'=>'Nama wajib diisi.',
             'email.required'=>'Email wajib diisi.',
             'email.email'=>'Format email belum sesuai.',

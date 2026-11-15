@@ -21,11 +21,28 @@
                 <label>Nama lengkap<input name="nama" autocomplete="off" value="{{ old('nama') }}" placeholder="Nama Anda" required></label>
                 <label>Email<input type="email" name="email" autocomplete="off" value="{{ old('email') }}" placeholder="nama@email.com" required></label>
                 <label>No. HP <small class="field-note">opsional</small>
-                    <span class="phone-field-62" style="display:flex;align-items:center;gap:10px;border:1px solid #d5dcd3;border-radius:12px;padding:0 12px;background:#fff;">
-                        <span style="font-weight:700;color:#194d3a;white-space:nowrap;">+62</span>
-                        <input id="noHpDaftar" name="no_hp" type="tel" inputmode="numeric" autocomplete="off" value="{{ old('no_hp') }}" placeholder="" style="border:0;box-shadow:none;flex:1;min-width:0;" aria-label="Nomor HP setelah kode negara +62">
+                    <span class="phone-field-62"
+                        style="display:flex;align-items:center;gap:10px;border:1px solid #d5dcd3;border-radius:12px;padding:0 12px;background:#fff;">
+
+                        <span style="font-weight:700;color:#194d3a;white-space:nowrap;">
+                            +62
+                        </span>
+
+                        <input
+                            id="noHpDaftar"
+                            name="no_hp"
+                            type="tel"
+                            inputmode="numeric"
+                            autocomplete="tel-national"
+                            value="{{ preg_replace('/^(?:\+62|62|0)/', '', old('no_hp', '')) }}"
+                            style="border:0;box-shadow:none;flex:1;min-width:0;"
+                            aria-label="Nomor HP setelah kode negara +62"
+                        >
                     </span>
-                    <small class="field-note">Isi mulai angka 8.</small>
+
+                    <small class="field-note">
+                        Isi mulai angka 8, tanpa 0 atau +62.
+                    </small>
                 </label>
                 <label>Kata sandi
                     <span class="password-field">
@@ -57,20 +74,47 @@
 </div>
 
 
+
 <script>
 (() => {
-  const phone = document.getElementById('noHpDaftar');
-  if (!phone) return;
-  const normalize = (value) => {
-    let digits = value.replace(/\D/g, '');
-    if (digits.startsWith('62')) digits = digits.slice(2);
-    if (digits.startsWith('0')) digits = digits.slice(1);
-    return digits.slice(0, 14);
-  };
-  phone.value = normalize(phone.value);
-  phone.addEventListener('input', () => { phone.value = normalize(phone.value); });
-  const form = document.getElementById('formDaftarPalugada');
-  form?.addEventListener('submit', () => { phone.value = phone.value ? '+62' + normalize(phone.value) : ''; });
+    const phone = document.getElementById('noHpDaftar');
+    const form = document.getElementById('formDaftarPalugada');
+
+    if (!phone || !form) return;
+
+    function normalizePhone(value) {
+        let digits = String(value || '').replace(/\D/g, '');
+
+        if (digits.startsWith('62')) {
+            digits = digits.slice(2);
+        }
+
+        if (digits.startsWith('0')) {
+            digits = digits.slice(1);
+        }
+
+        return digits.slice(0, 13);
+    }
+
+    // Saat halaman dibuka
+    phone.value = normalizePhone(phone.value);
+
+    // Saat pengguna mengetik
+    phone.addEventListener('input', () => {
+        phone.value = normalizePhone(phone.value);
+    });
+
+    // Saat browser melakukan autofill
+    window.addEventListener('pageshow', () => {
+        phone.value = normalizePhone(phone.value);
+    });
+
+    // Saat form dikirim ke Laravel
+    form.addEventListener('submit', () => {
+        const nomor = normalizePhone(phone.value);
+
+        phone.value = nomor ? '+62' + nomor : '';
+    });
 })();
 </script>
 

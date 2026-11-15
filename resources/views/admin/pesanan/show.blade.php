@@ -93,14 +93,11 @@
                     @endif
                 @elseif($pesanan->status_pesanan === 'dibayar' || $pesanan->status_pesanan === 'diproses')
                     <p class="pesanan-action-note">
-                        Pesanan yang sudah dibayar tidak dapat dibatalkan dari halaman ini.
+                        Pesanan yang sudah dibayar dapat diproses oleh Admin sesuai tahapan pesanan.
                     </p>
                 @endif
             </div>
         @else
-            <p class="pesanan-action-closed">
-                Pesanan ini sudah {{ $pesanan->status_pesanan === 'selesai' ? 'selesai' : 'dibatalkan' }} dan statusnya tidak dapat diubah.
-            </p>
         @endif
     </section>
 
