@@ -5,8 +5,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Produk extends Model {
     use SoftDeletes;
     protected $table = 'produk';
-    protected $fillable=['kode_produk','nama_produk','jenis_produk_id','jenis','motif','warna','ukuran','material','harga','foto','status'];
-    protected function casts(): array { return ['harga'=>'decimal:2']; }
+    protected $fillable=['kode_produk','nama_produk','jenis_produk_id','jenis','motif','warna','ukuran','material','harga','foto','status','berat_gram'];
+    protected function casts(): array { return ['harga'=>'decimal:2','berat_gram'=>'integer']; }
     public function jenisProduk(){ return $this->belongsTo(JenisProduk::class, 'jenis_produk_id'); }
     public function stok(){ return $this->hasOne(Stok::class,'produk_id'); }
     public function targetProduksi(){ return $this->hasMany(TargetProduksi::class,'produk_id'); }
