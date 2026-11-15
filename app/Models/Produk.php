@@ -23,8 +23,15 @@ class Produk extends Model
         'harga',
         'foto',
         'status',
+        'berat_gram',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'berat_gram' => 'integer',
+        ];
+    }
     // Harga tidak boleh di-cast menjadi decimal
     // karena saat praktikum PML nilainya berupa ciphertext AES.
 
@@ -113,7 +120,6 @@ class Produk extends Model
             '.'
         );
     }
-
 
     public static function generateKodeProduk(): string
     {

@@ -135,8 +135,13 @@
                         <span class="pesanan-total">
                             {{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}
                         </span>
+                        @if((float) ($pesanan->ongkir ?? 0) > 0)
+                            <small class="pesanan-ongkir-note">
+                                Termasuk ongkir
+                                {{ \App\Support\LabelPesanan::formatRupiah($pesanan->ongkir) }}
+                            </small>
+                        @endif
                     </td>
-
                     <td>
                         @if($pembayaranTerbaru)
                             <div class="pesanan-payment-cell">

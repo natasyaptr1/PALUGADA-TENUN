@@ -15,6 +15,9 @@ use Illuminate\View\View;
 
 class ProdukController extends Controller
 {
+    /**
+     * Menampilkan daftar produk admin.
+     */
     public function index(Request $request): View
     {
         $perHalaman = (int) $request->input('per_halaman', 10);
@@ -48,9 +51,13 @@ class ProdukController extends Controller
         );
     }
 
+    /**
+     * Menampilkan form tambah produk.
+     */
     public function create(): View
     {
         $kodeOtomatis = Produk::generateKodeProduk();
+
         $daftarJenis = JenisProduk::orderBy('nama_jenis')->get();
 
         return view(
@@ -59,6 +66,9 @@ class ProdukController extends Controller
         );
     }
 
+    /**
+     * Menyimpan produk baru.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validasi($request);
@@ -68,7 +78,11 @@ class ProdukController extends Controller
         }
 
         $jenisModel = JenisProduk::find($data['jenis_produk_id']);
+
         $data['jenis'] = $jenisModel?->nama_jenis ?? '';
+
+        // Berat wajib diisi untuk produk baru.
+        $data['berat_gram'] = (int) $data['berat_gram'];
 
         $uploadedFiles = [];
 
@@ -95,11 +109,13 @@ class ProdukController extends Controller
         DB::transaction(function () use ($data, $uploadedFiles) {
             $produk = Produk::create($data);
 
+            // Stok awal produk baru adalah nol.
             Stok::create([
                 'produk_id' => $produk->id,
                 'jumlah_stok' => 0,
             ]);
 
+            // Simpan seluruh foto tambahan.
             foreach ($uploadedFiles as $path) {
                 $produk->produkFoto()->create([
                     'foto' => $path,
@@ -112,10 +128,14 @@ class ProdukController extends Controller
             ->with('success', 'Produk berhasil ditambahkan.');
     }
 
+    /**
+     * Menampilkan form edit produk.
+     */
     public function edit(Produk $produk): View
     {
         $produk->load(['stok', 'produkFoto', 'jenisProduk']);
 
+        // Mempertahankan kompatibilitas foto produk lama.
         if (!empty($produk->foto) && $produk->produkFoto->isEmpty()) {
             $produk->produkFoto()->create([
                 'foto' => $produk->foto,
@@ -132,14 +152,27 @@ class ProdukController extends Controller
         );
     }
 
+    /**
+     * Memperbarui produk.
+     */
     public function update(Request $request, Produk $produk): RedirectResponse
     {
         $data = $this->validasi($request, $produk->id);
 
+        // Kode produk tidak berubah saat edit.
         $data['kode_produk'] = $produk->kode_produk;
 
         $jenisModel = JenisProduk::find($data['jenis_produk_id']);
+
         $data['jenis'] = $jenisModel?->nama_jenis ?? '';
+
+        // Jika form edit tidak mengirim berat,
+        // pertahankan berat produk sebelumnya.
+        if (!array_key_exists('berat_gram', $data)) {
+            $data['berat_gram'] = $produk->berat_gram;
+        } else {
+            $data['berat_gram'] = (int) $data['berat_gram'];
+        }
 
         $uploadedFiles = [];
 
@@ -157,6 +190,8 @@ class ProdukController extends Controller
             }
         }
 
+        // Jika produk belum memiliki foto utama,
+        // gunakan foto baru pertama sebagai foto utama.
         if (!empty($uploadedFiles) && empty($produk->foto)) {
             $data['foto'] = $uploadedFiles[0];
         } else {
@@ -178,6 +213,9 @@ class ProdukController extends Controller
             ->with('success', 'Produk berhasil diperbarui.');
     }
 
+    /**
+     * Menghapus satu foto produk.
+     */
     public function destroyFoto(
         Produk $produk,
         ProdukFoto $foto
@@ -188,6 +226,8 @@ class ProdukController extends Controller
             Storage::disk('public')->delete($foto->foto);
         }
 
+        // Jika foto yang dihapus merupakan foto utama,
+        // gunakan foto lain apabila tersedia.
         if ($produk->foto === $foto->foto) {
             $nextFoto = $produk->produkFoto()
                 ->where('id', '!=', $foto->id)
@@ -206,6 +246,9 @@ class ProdukController extends Controller
         );
     }
 
+    /**
+     * Menghapus produk apabila stok sudah kosong.
+     */
     public function destroy(Produk $produk): RedirectResponse
     {
         $produk->loadMissing('stok');
@@ -234,7 +277,9 @@ class ProdukController extends Controller
         }
 
         $produk->produkFoto()->delete();
+
         $produk->stok()->delete();
+
         $produk->delete();
 
         return redirect()
@@ -242,10 +287,18 @@ class ProdukController extends Controller
             ->with('success', 'Produk berhasil dihapus.');
     }
 
+    /**
+     * Validasi data produk.
+     *
+     * Berat wajib pada produk baru.
+     * Pada edit, berat lama dipertahankan jika tidak dikirim.
+     */
     private function validasi(
         Request $request,
         ?int $produkId = null
     ): array {
+        // Mengubah format harga yang dimasukkan admin,
+        // misalnya Rp 150.000 menjadi 150000.
         if (
             $request->has('harga') &&
             is_string($request->input('harga'))
@@ -261,7 +314,7 @@ class ProdukController extends Controller
             ]);
         }
 
-        return $request->validate([
+        $rules = [
             'kode_produk' => [
                 'nullable',
                 'string',
@@ -269,63 +322,117 @@ class ProdukController extends Controller
                 'unique:produk,kode_produk' .
                     ($produkId ? ',' . $produkId : ''),
             ],
+
             'nama_produk' => [
                 'required',
                 'string',
                 'max:100',
             ],
+
             'jenis_produk_id' => [
                 'required',
                 'exists:jenis_produk,id',
             ],
+
             'motif' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
+
             'warna' => [
                 'nullable',
                 'string',
                 'max:50',
             ],
+
             'ukuran' => [
                 'nullable',
                 'string',
                 'max:50',
             ],
+
             'material' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
+
             'harga' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
+
             'foto' => [
                 'nullable',
             ],
+
             'foto.*' => [
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:2048',
             ],
+
             'status' => [
                 'required',
                 'in:aktif,nonaktif',
             ],
-        ], [
-            'nama_produk.required' => 'Nama produk wajib diisi.',
-            'jenis_produk_id.required' => 'Jenis produk wajib dipilih.',
-            'jenis_produk_id.exists' => 'Jenis produk yang dipilih tidak valid.',
-            'harga.required' => 'Harga produk wajib diisi.',
-            'harga.numeric' => 'Harga produk harus berupa angka.',
-            'harga.min' => 'Harga produk minimal Rp 0.',
-            'status.required' => 'Status produk wajib dipilih.',
-            'foto.*.image' => 'File yang diunggah harus berupa gambar.',
-            'foto.*.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
-            'foto.*.max' => 'Ukuran setiap file foto maksimal 2MB.',
+        ];
+
+        // Produk baru wajib memiliki berat.
+        // Saat edit, berat divalidasi jika field dikirim.
+        if ($produkId === null || $request->has('berat_gram')) {
+            $rules['berat_gram'] = [
+                'required',
+                'integer',
+                'min:1',
+                'max:100000',
+            ];
+        }
+
+        return $request->validate($rules, [
+            'nama_produk.required' =>
+                'Nama produk wajib diisi.',
+
+            'jenis_produk_id.required' =>
+                'Jenis produk wajib dipilih.',
+
+            'jenis_produk_id.exists' =>
+                'Jenis produk yang dipilih tidak valid.',
+
+            'harga.required' =>
+                'Harga produk wajib diisi.',
+
+            'harga.numeric' =>
+                'Harga produk harus berupa angka.',
+
+            'harga.min' =>
+                'Harga produk minimal Rp 0.',
+
+            'status.required' =>
+                'Status produk wajib dipilih.',
+
+            'berat_gram.required' =>
+                'Berat produk wajib diisi.',
+
+            'berat_gram.integer' =>
+                'Berat produk harus berupa angka bulat (gram).',
+
+            'berat_gram.min' =>
+                'Berat produk minimal 1 gram.',
+
+            'berat_gram.max' =>
+                'Berat produk maksimal 100.000 gram.',
+
+            'foto.*.image' =>
+                'File yang diunggah harus berupa gambar.',
+
+            'foto.*.mimes' =>
+                'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
+
+            'foto.*.max' =>
+                'Ukuran setiap file foto maksimal 2MB.',
         ]);
     }
 }

@@ -150,7 +150,7 @@
 
                 <a
                     href="{{ route('admin.laporan') }}"
-                    class="nav-link {{ request()->routeIs('admin.laporan') ? 'active' : '' }}"
+                    class="nav-link {{ request()->routeIs('admin.laporan', 'admin.laporan.*') ? 'active' : '' }}"
                 >
                     <span class="nav-dot"></span>
                     <span>Laporan</span>
@@ -620,6 +620,6 @@
     src="{{ asset('js/app.js') }}"
     defer
 ></script>
-
+@stack('scripts')
 </body>
 </html>

@@ -3,370 +3,273 @@
 @section('title', 'Checkout - Palugada Bandar')
 
 @section('content')
-<style>
-    .pg-checkout {
-        max-width: 1180px;
-        margin: 0 auto;
-        padding: 35px 20px 75px;
-        color: #173d32;
-    }
+<link rel="stylesheet" href="{{ asset('css/checkout-ongkir.css') }}">
 
-    .pg-checkout * {
-        box-sizing: border-box;
-    }
+<section class="member-simple-page member-list-page-v4">
 
-    .pg-checkout-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 20px;
-        margin-bottom: 32px;
-        flex-wrap: wrap;
-    }
-
-    .pg-checkout-label {
-        font-size: 12px;
-        letter-spacing: 2px;
-        font-weight: 700;
-        color: #b06a42;
-        margin-bottom: 8px;
-    }
-
-    .pg-checkout-header h1 {
-        font-size: clamp(28px, 4vw, 40px);
-        margin: 0 0 8px;
-        color: #12392e;
-    }
-
-    .pg-checkout-subtitle {
-        color: #718079;
-        font-size: 14px;
-        margin: 0;
-    }
-
-    .pg-checkout-back {
-        color: #173d32;
-        border: 1px solid #d7dcd7;
-        background: #fff;
-        text-decoration: none;
-        padding: 12px 18px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    .pg-checkout-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
-        gap: 24px;
-        align-items: start;
-    }
-
-    .pg-checkout-card {
-        background: #fff;
-        border: 1px solid #e5e9e4;
-        border-radius: 18px;
-        padding: 28px;
-        box-shadow: 0 5px 20px rgba(20, 55, 44, .035);
-        min-width: 0;
-    }
-
-    .pg-checkout-card h2 {
-        margin: 0 0 8px;
-        font-size: 21px;
-        color: #12392e;
-    }
-
-    .pg-checkout-hint {
-        margin: 0 0 24px;
-        color: #7a877f;
-        font-size: 13px;
-    }
-
-    .pg-checkout-field {
-        margin-bottom: 20px;
-    }
-
-    .pg-checkout-field label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    .pg-checkout-field input,
-    .pg-checkout-field textarea,
-    .pg-checkout-field select {
-        display: block;
-        width: 100%;
-        padding: 13px 14px;
-        border: 1px solid #d9e1da;
-        background: #fff;
-        border-radius: 10px;
-        font: inherit;
-        font-size: 14px;
-        color: #203d33;
-        outline: none;
-    }
-
-    .pg-checkout-field input:focus,
-    .pg-checkout-field textarea:focus,
-    .pg-checkout-field select:focus {
-        border-color: #397561;
-        box-shadow: 0 0 0 3px rgba(57, 117, 97, .10);
-    }
-
-    .pg-checkout-field textarea {
-        min-height: 110px;
-        resize: vertical;
-    }
-
-    .pg-checkout-info {
-        background: #f2f7f3;
-        border: 1px solid #dce9de;
-        border-radius: 10px;
-        padding: 13px 15px;
-        color: #496a58;
-        font-size: 12px;
-        line-height: 1.7;
-        margin: 8px 0 22px;
-    }
-
-    .pg-checkout-submit {
-        width: 100%;
-        padding: 15px 20px;
-        border: none;
-        border-radius: 11px;
-        background: #174b3b;
-        color: white;
-        font-weight: 700;
-        font-size: 14px;
-        cursor: pointer;
-    }
-
-    .pg-checkout-submit:hover {
-        background: #103b2f;
-    }
-
-    .pg-checkout-item {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
-        padding: 17px 0;
-        border-bottom: 1px solid #edf0eb;
-    }
-
-    .pg-checkout-item strong {
-        display: block;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-
-    .pg-checkout-item small {
-        display: block;
-        color: #88918b;
-        margin-top: 5px;
-        font-size: 12px;
-    }
-
-    .pg-checkout-item-price {
-        font-size: 14px;
-        font-weight: 700;
-        white-space: nowrap;
-        text-align: right;
-    }
-
-    .pg-checkout-total {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 22px;
-        gap: 12px;
-    }
-
-    .pg-checkout-total span {
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .pg-checkout-total strong {
-        font-size: 24px;
-        color: #174b3b;
-        white-space: nowrap;
-    }
-
-    .pg-checkout-note {
-        margin-top: 18px;
-        font-size: 12px;
-        line-height: 1.6;
-        color: #89928b;
-    }
-
-    .pg-checkout-error {
-        padding: 14px 16px;
-        margin-bottom: 24px;
-        border-radius: 10px;
-        background: #fff0ee;
-        color: #a13c32;
-        border: 1px solid #f1d3ce;
-        font-size: 13px;
-    }
-
-    @media (max-width: 800px) {
-        .pg-checkout-layout {
-            grid-template-columns: 1fr;
-        }
-
-        .pg-checkout-card {
-            padding: 22px;
-        }
-
-        .pg-checkout {
-            padding: 25px 15px 50px;
-        }
-
-        .pg-checkout-total strong {
-            font-size: 21px;
-        }
-    }
-</style>
-
-<section class="pg-checkout">
-
-    <header class="pg-checkout-header">
+    <div class="member-simple-head member-simple-head-v4">
         <div>
-            <div class="pg-checkout-label">PALUGADA BANDAR / CHECKOUT</div>
+            <span class="eyebrow">CHECKOUT</span>
             <h1>Checkout Pesanan</h1>
-            <p class="pg-checkout-subtitle">
-                Lengkapi informasi pengiriman dan pilih metode pembayaran.
-            </p>
+            <p>Lengkapi informasi pengiriman dan metode pembayaran.</p>
         </div>
 
-        <a href="{{ route('pembeli.keranjang') }}"
-           class="pg-checkout-back">
-            &larr; Kembali ke Keranjang
+        <a href="{{ route('pembeli.keranjang') }}" class="btn btn-outline">
+            Kembali ke Keranjang
         </a>
-    </header>
+    </div>
 
     @if($errors->any())
-        <div class="pg-checkout-error" role="alert">
-            {{ $errors->first() }}
+        <div style="padding:15px;background:#ffe8e8;color:#a52222;border-radius:10px;margin:20px 0;">
+            <ul style="margin:0;padding-left:20px;">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
-    <div class="pg-checkout-layout">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:24px;margin-top:30px;align-items:start;">
 
-        <div class="pg-checkout-card">
-            <h2>Informasi Pengiriman</h2>
-            <p class="pg-checkout-hint">
-                Pastikan informasi penerima sesuai sebelum membuat pesanan.
-            </p>
+        <div style="background:white;border:1px solid #e5e0d6;border-radius:16px;padding:28px;">
 
-            <form action="{{ route('pembeli.checkout.simpan') }}"
-                  method="POST">
+            <h2 style="margin-bottom:24px;">Informasi Pengiriman</h2>
+
+            <form id="form-checkout"
+                  action="{{ route('pembeli.checkout.simpan') }}"
+                  method="POST"
+                  data-url-tujuan="{{ route('pembeli.ongkir.tujuan') }}"
+                  data-url-opsi="{{ route('pembeli.ongkir.opsi') }}"
+                  data-subtotal="{{ $subtotal }}"
+                  data-berat="{{ $beratTotalGram }}"
+                  data-pembayaran-per-metode='@json($pembayaranPerMetode)'
+                  data-label-ambil="{{ config('ongkir.label_ambil_di_tempat') }}"
+                  data-old-metode-pengiriman="{{ old('metode_pengiriman', 'ambil_di_tempat') }}"
+                  data-old-metode-pembayaran="{{ old('metode', 'cash') }}"
+                  data-old-tujuan-id="{{ old('tujuan_id', '') }}"
+                  data-old-tujuan-label="{{ old('tujuan_label', '') }}"
+                  data-old-kurir-kode="{{ old('kurir_kode', '') }}"
+                  data-old-layanan-kurir="{{ old('layanan_kurir', '') }}">
+
                 @csrf
 
-                <div class="pg-checkout-field">
-                    <label for="nama_penerima">Nama Penerima</label>
-                    <input
-                        id="nama_penerima"
-                        name="nama_penerima"
-                        type="text"
-                        maxlength="100"
-                        required
-                        autocomplete="name"
-                        value="{{ old('nama_penerima', auth()->user()->nama) }}"
-                        placeholder="Masukkan nama penerima">
+                <!-- Input Hidden untuk Data Pengiriman Ekspedisi -->
+                <input type="hidden" name="tujuan_id" id="tujuan_id" value="{{ old('tujuan_id') }}">
+                <input type="hidden" name="tujuan_label" id="tujuan_label" value="{{ old('tujuan_label') }}">
+                <input type="hidden" name="kurir_kode" id="kurir_kode" value="{{ old('kurir_kode') }}">
+                <input type="hidden" name="layanan_kurir" id="layanan_kurir" value="{{ old('layanan_kurir') }}">
+
+                <!-- Data Penerima -->
+                <div style="margin-bottom:20px;">
+                    <label for="nama_penerima" style="font-weight:600;display:block;margin-bottom:6px;">Nama Penerima</label>
+                    <input type="text"
+                           id="nama_penerima"
+                           name="nama_penerima"
+                           value="{{ old('nama_penerima', auth()->user()->nama) }}"
+                           required
+                           maxlength="100"
+                           class="ongkir-input-text">
                 </div>
 
-                <div class="pg-checkout-field">
-                    <label for="no_hp">Nomor Telepon</label>
-                    <input
-                        id="no_hp"
-                        name="no_hp"
-                        type="tel"
-                        required
-                        autocomplete="tel"
-                        value="{{ old('no_hp', auth()->user()->no_hp) }}"
-                        placeholder="08xxxxxxxxxx">
+                <div style="margin-bottom:20px;">
+                    <label for="no_hp" style="font-weight:600;display:block;margin-bottom:6px;">Nomor HP</label>
+                    <input type="tel"
+                           id="no_hp"
+                           name="no_hp"
+                           value="{{ old('no_hp', auth()->user()->no_hp) }}"
+                           placeholder="08xxxxxxxxxx"
+                           required
+                           class="ongkir-input-text">
                 </div>
 
-                <div class="pg-checkout-field">
-                    <label for="alamat_pengiriman">Alamat Pengiriman</label>
-                    <textarea
-                        id="alamat_pengiriman"
-                        name="alamat_pengiriman"
-                        maxlength="1000"
-                        rows="4"
-                        required
-                        placeholder="Masukkan alamat lengkap">{{ old('alamat_pengiriman', auth()->user()->alamat) }}</textarea>
+                <!-- Pilihan Metode Pengiriman -->
+                <div style="margin-bottom:24px;">
+                    <label style="font-weight:600;display:block;margin-bottom:6px;">Metode Pengiriman</label>
+
+                    <div class="ongkir-pilihan-grup">
+                        <label class="ongkir-radio-card @if(old('metode_pengiriman', 'ambil_di_tempat') === 'ambil_di_tempat') active @endif">
+                            <input type="radio"
+                                   name="metode_pengiriman"
+                                   value="ambil_di_tempat"
+                                   @checked(old('metode_pengiriman', 'ambil_di_tempat') === 'ambil_di_tempat')>
+                            <div>
+                                <span class="ongkir-card-label">Ambil di Tempat</span>
+                                <span class="ongkir-card-desc">{{ config('ongkir.label_ambil_di_tempat') }} (Bebas Ongkir)</span>
+                            </div>
+                        </label>
+
+                        <label class="ongkir-radio-card @if(old('metode_pengiriman') === 'ekspedisi') active @endif @if(!$ongkirTersedia) disabled @endif">
+                            <input type="radio"
+                                   name="metode_pengiriman"
+                                   value="ekspedisi"
+                                   @checked(old('metode_pengiriman') === 'ekspedisi')
+                                   @disabled(!$ongkirTersedia)>
+                            <div>
+                                <span class="ongkir-card-label">Ekspedisi (Kirim ke Alamat)</span>
+                                <span class="ongkir-card-desc">
+                                    @if($ongkirTersedia)
+                                        Pengiriman via JNE, J&T, SiCepat
+                                    @else
+                                        Pengiriman ekspedisi belum tersedia
+                                    @endif
+                                </span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="pg-checkout-field">
-                    <label for="metode">Metode Pembayaran</label>
-                    <select id="metode" name="metode" required>
-                        <option value="midtrans"
-                            @selected(old('metode', 'midtrans') === 'midtrans')>
-                            Midtrans - Pembayaran Online
-                        </option>
-                        <option value="cash"
-                            @selected(old('metode') === 'cash')>
-                            Cash - Konfirmasi Admin
-                        </option>
-                    </select>
+                <!-- Blok Ekspedisi: Pencarian Wilayah & Pilihan Kurir -->
+                <div id="blok-ekspedisi" style="display: @if(old('metode_pengiriman') === 'ekspedisi') block @else none @endif; margin-bottom:24px; padding:18px; background:#fbfaf8; border:1px solid #e7e2d9; border-radius:12px;">
+
+                    <!-- 1. Pencarian Tujuan -->
+                    <div style="margin-bottom:18px;">
+                        <label style="font-weight:600;display:block;margin-bottom:6px;">Wilayah / Kota Tujuan</label>
+
+                        <div id="wadah-cari-tujuan" class="ongkir-cari-wadah">
+                            <input type="text"
+                                   id="input-cari-tujuan"
+                                   class="ongkir-input-text"
+                                   placeholder="Ketik minimal 3 huruf nama kecamatan atau kota..."
+                                   autocomplete="off">
+                            <div id="loading-tujuan" class="ongkir-status-box ongkir-status-loading" style="display:none;">
+                                Sedang mencari wilayah...
+                            </div>
+                            <div id="dropdown-hasil-tujuan" class="ongkir-dropdown-hasil" style="display:none;"></div>
+                        </div>
+
+                        <div id="wadah-tujuan-terpilih" class="ongkir-tujuan-terpilih-box" style="display:none;">
+                            <div>
+                                <small style="display:block;color:#666;font-size:11px;">Tujuan Pengiriman:</small>
+                                <span id="teks-tujuan-terpilih" class="ongkir-tujuan-terpilih-teks"></span>
+                            </div>
+                            <button type="button" id="btn-ganti-tujuan" class="ongkir-btn-ganti">Ganti</button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Pilihan Layanan Kurir -->
+                    <div id="wadah-opsi-kurir" style="margin-bottom:12px;">
+                        <label style="font-weight:600;display:block;margin-bottom:6px;">Pilih Layanan Kurir</label>
+
+                        <div id="loading-kurir" class="ongkir-status-box ongkir-status-loading" style="display:none;">
+                            Menghitung tarif ongkos kirim...
+                        </div>
+                        <div id="pesan-error-kurir" class="ongkir-status-box ongkir-status-error" style="display:none;"></div>
+                        <div id="pesan-kosong-kurir" class="ongkir-status-box ongkir-status-empty" style="display:none;"></div>
+                        <div id="daftar-opsi-kurir" class="ongkir-opsi-list"></div>
+                    </div>
                 </div>
 
-                <div class="pg-checkout-info">
-                    Pembayaran online diproses melalui Midtrans.
-                    Status pesanan akan diperbarui setelah
-                    pembayaran berhasil diverifikasi.
+                <!-- Blok Alamat Pengiriman -->
+                <div id="blok-alamat-pengiriman" style="display: @if(old('metode_pengiriman') === 'ekspedisi') block @else none @endif; margin-bottom:20px;">
+                    <label for="alamat_pengiriman" style="font-weight:600;display:block;margin-bottom:6px;">Alamat Lengkap Pengiriman</label>
+                    <textarea id="alamat_pengiriman"
+                              name="alamat_pengiriman"
+                              rows="3"
+                              maxlength="1000"
+                              placeholder="Nama jalan, nomor rumah, RT/RW, patokan..."
+                              class="ongkir-input-text">{{ old('alamat_pengiriman', auth()->user()->alamat) }}</textarea>
                 </div>
 
-                <button type="submit" class="pg-checkout-submit">
-                    Buat Pesanan &amp; Lanjutkan
+                <!-- Metode Pembayaran -->
+                <div style="margin-bottom:28px;">
+                    <label style="font-weight:600;display:block;margin-bottom:6px;">Metode Pembayaran</label>
+
+                    <div class="ongkir-pilihan-grup">
+                        <label class="ongkir-radio-card @if(old('metode', 'cash') === 'cash') active @endif">
+                            <input type="radio"
+                                   name="metode"
+                                   id="metode_cash"
+                                   value="cash"
+                                   @checked(old('metode', 'cash') === 'cash')>
+                            <div>
+                                <span class="ongkir-card-label">Cash (Bayar di Tempat)</span>
+                                <span class="ongkir-card-desc">Khusus metode Ambil di Tempat</span>
+                            </div>
+                        </label>
+
+                        <label class="ongkir-radio-card @if(old('metode') === 'midtrans') active @endif">
+                            <input type="radio"
+                                   name="metode"
+                                   id="metode_midtrans"
+                                   value="midtrans"
+                                   @checked(old('metode') === 'midtrans')>
+                            <div>
+                                <span class="ongkir-card-label">Midtrans (Pembayaran Online)</span>
+                                <span class="ongkir-card-desc">Transfer Bank, QRIS, & E-Wallet</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        id="btn-submit-pesanan"
+                        class="btn btn-primary"
+                        style="width:100%;padding:14px;font-size:16px;">
+                    Buat Pesanan
                 </button>
+
             </form>
         </div>
 
-        <aside class="pg-checkout-card">
-            <h2>Ringkasan Pesanan</h2>
-            <p class="pg-checkout-hint">
-                {{ $keranjang->detail->count() }} jenis produk dalam keranjang
-            </p>
+        <!-- Kolom Ringkasan Pesanan -->
+        <div style="background:white;border:1px solid #e5e0d6;border-radius:16px;padding:28px;">
+
+            <h2 style="margin-bottom:24px;">Ringkasan Pesanan</h2>
 
             @foreach($keranjang->detail as $item)
                 @php
-                    $subtotal = (float) $item->produk->harga * $item->jumlah;
+                    $itemSubtotal = (float) $item->produk->harga * $item->jumlah;
                 @endphp
 
-                <div class="pg-checkout-item">
-                    <div>
-                        <strong>{{ $item->produk->nama_produk }}</strong>
-                        <small>
-                            {{ $item->jumlah }} &times;
-                            Rp{{ number_format((float) $item->produk->harga, 0, ',', '.') }}
-                        </small>
-                    </div>
+                <div style="padding:14px 0;border-bottom:1px solid #eee;">
+                    <strong>{{ $item->produk->nama_produk }}</strong>
 
-                    <div class="pg-checkout-item-price">
-                        Rp{{ number_format($subtotal, 0, ',', '.') }}
-                    </div>
+                    <p style="margin:4px 0;color:#666;font-size:13px;">
+                        {{ $item->jumlah }} × Rp {{ number_format((float) $item->produk->harga, 0, ',', '.') }}
+                        @if(!empty($item->produk->berat_gram))
+                            <span style="color:#888;">({{ $item->produk->berat_gram }}g)</span>
+                        @endif
+                    </p>
+
+                    <strong>
+                        Rp {{ number_format($itemSubtotal, 0, ',', '.') }}
+                    </strong>
                 </div>
             @endforeach
 
-            <div class="pg-checkout-total">
-                <span>Total Belanja</span>
-                <strong>
-                    Rp{{ number_format($total, 0, ',', '.') }}
-                </strong>
+            <!-- Rincian Biaya -->
+            <div style="margin-top:20px;">
+                <div class="ongkir-ringkasan-baris">
+                    <span>Subtotal Produk</span>
+                    <strong>Rp {{ number_format($subtotal, 0, ',', '.') }}</strong>
+                </div>
+
+                <div class="ongkir-ringkasan-baris">
+                    <span>Total Berat</span>
+                    <span>{{ number_format($beratTotalGram, 0, ',', '.') }} gram</span>
+                </div>
+
+                <div class="ongkir-ringkasan-baris">
+                    <span>Ongkos Kirim</span>
+                    <strong id="ringkasan-ongkir">Rp 0</strong>
+                </div>
+
+                <div class="ongkir-ringkasan-baris total-baris">
+                    <div>
+                        <span style="font-weight:600;display:block;">Estimasi Total</span>
+                        <small style="color:#777;font-size:11px;">Termasuk ongkir</small>
+                    </div>
+
+                    <h2 id="ringkasan-total" style="color:#163f32;margin:0;">
+                        Rp {{ number_format($subtotal, 0, ',', '.') }}
+                    </h2>
+                </div>
             </div>
 
-            <p class="pg-checkout-note">
-                Ongkos pengiriman belum dihitung oleh sistem.
-                Periksa kembali rincian pesanan sebelum melanjutkan.
-            </p>
-        </aside>
-
+        </div>
     </div>
+
 </section>
+
+<script src="{{ asset('js/checkout-ongkir.js') }}" defer></script>
 @endsection

@@ -16,6 +16,9 @@ use App\Http\Controllers\Pembeli\PembatalanPesananController;
 use App\Services\RekomendasiProdukService;
 use App\Models\Produk;
 use App\Http\Controllers\Pembeli\RekomendasiController;
+use App\Http\Controllers\Pembeli\OngkirController;
+use App\Http\Controllers\Admin\LaporanProduksiController;
+use App\Http\Controllers\Admin\LaporanStokController;
 use Illuminate\Support\Facades\Route;
 
 // ==========================================
@@ -287,6 +290,32 @@ Route::middleware(['auth', 'peran:pembeli'])
 
 
 // ==========================================
+// ONGKIR PEMBELI - SPRINT 4 PANJOL
+// ==========================================
+
+    Route::middleware(['auth', 'peran:pembeli'])
+    ->prefix('akun/ongkir')
+    ->name('pembeli.ongkir.')
+    ->group(function () {
+
+        // Mencari kota atau kecamatan tujuan pengiriman.
+        Route::get(
+            '/tujuan',
+            [OngkirController::class, 'tujuan']
+        )
+        ->middleware('throttle:30,1')
+        ->name('tujuan');
+
+        // Mengambil pilihan layanan kurir dan ongkir.
+        Route::get(
+            '/opsi',
+            [OngkirController::class, 'opsi']
+        )
+        ->middleware('throttle:20,1')
+        ->name('opsi');
+    });
+
+// ==========================================
 // ADMIN
 // ==========================================
 
@@ -400,10 +429,29 @@ Route::middleware(['auth', 'peran:admin'])
             'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
         ])->name('pembayaran');
 
-        Route::view('/laporan', 'admin.placeholder', [
-            'judul' => 'Laporan',
-            'deskripsi' => 'Ringkasan produksi, stok, penjualan, dan pembayaran akan tampil di sini ketika datanya tersedia.',
-        ])->name('laporan');
+
+        // ==========================================
+        // LAPORAN PRODUKSI DAN STOK - SPRINT 4 PUTRI
+        // ==========================================
+
+        // Halaman utama laporan.
+        Route::view(
+            '/laporan',
+            'admin.laporan.index'
+        )->name('laporan');
+
+        // Laporan produksi.
+        Route::get(
+            '/laporan/produksi',
+            [LaporanProduksiController::class, 'index']
+        )->name('laporan.produksi');
+
+        // Laporan stok.
+        Route::get(
+            '/laporan/stok',
+            [LaporanStokController::class, 'index']
+        )->name('laporan.stok');
+
 
     });
 
