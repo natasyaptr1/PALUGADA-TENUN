@@ -17,6 +17,9 @@ use App\Http\Controllers\Pembeli\PembayaranController;
 use App\Http\Controllers\Pembeli\PembatalanPesananController;
 use App\Http\Controllers\Pembeli\OngkirController;
 
+use App\Http\Controllers\Admin\LaporanProduksiController;
+use App\Http\Controllers\Admin\LaporanStokController;
+
 use App\Models\Produk;
 
 use Illuminate\Support\Facades\Route;
@@ -505,20 +508,29 @@ Route::middleware(['auth', 'peran:admin'])
                 'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
             ]
         )->name('pembayaran');
-
-
+        
         // ==================================
-        // HALAMAN LAPORAN
+        // LAPORAN SPRINT 4 - PUTRI
         // ==================================
 
+        // Halaman utama laporan
         Route::view(
             '/laporan',
-            'admin.placeholder',
-            [
-                'judul' => 'Laporan',
-                'deskripsi' => 'Ringkasan produksi, stok, penjualan, dan pembayaran akan tampil di sini ketika datanya tersedia.',
-            ]
+            'admin.laporan.index'
         )->name('laporan');
+
+        // Laporan produksi
+        Route::get(
+            '/laporan/produksi',
+            [LaporanProduksiController::class, 'index']
+        )->name('laporan.produksi');
+
+        // Laporan stok
+        Route::get(
+            '/laporan/stok',
+            [LaporanStokController::class, 'index']
+        )->name('laporan.stok');
+
 
     });
 
