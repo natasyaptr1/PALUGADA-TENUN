@@ -41,7 +41,7 @@
                 <a href="{{ route('admin.target-produksi') }}" class="nav-link {{ request()->routeIs('admin.target-produksi') ? 'active' : '' }}"><span class="nav-dot"></span><span>Target Produksi</span></a>
                 <a href="{{ route('admin.pesanan.index') }}" class="nav-link {{ request()->routeIs('admin.pesanan.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pesanan</span></a>
                 <a href="{{ route('admin.pembayaran') }}" class="nav-link {{ request()->routeIs('admin.pembayaran') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pembayaran</span></a>
-                <a href="{{ route('admin.laporan') }}" class="nav-link {{ request()->routeIs('admin.laporan') ? 'active' : '' }}"><span class="nav-dot"></span><span>Laporan</span></a>
+                <a href="{{ route('admin.laporan') }}" class="nav-link {{ request()->routeIs('admin.laporan', 'admin.laporan.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Laporan</span></a>
             </nav>
         </aside>
 

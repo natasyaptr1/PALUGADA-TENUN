@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\BerandaController;
 use App\Http\Controllers\Admin\JenisProdukController;
 use App\Http\Controllers\Admin\TargetProduksiController;
+use App\Http\Controllers\Admin\LaporanProduksiController;
+use App\Http\Controllers\Admin\LaporanStokController;
 use App\Http\Controllers\Admin\StokController;
 use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PenenunController;
@@ -134,16 +136,16 @@ Route::middleware(['auth', 'peran:pembeli'])
         Route::put('/profil', [AkunController::class, 'perbaruiProfil'])
             ->name('profil.perbarui');
 
+        Route::patch(
+            '/pesanan/{pesanan}/batalkan',
+            [PembatalanPesananController::class, 'batalkan']
+        )->name('pesanan.batalkan');
+
         Route::get('/pesanan', [AkunController::class, 'pesanan'])
             ->name('pesanan');
 
         Route::get('/pesanan/{pesanan}/bayar', [PembayaranController::class, 'lanjutkan'])
             ->name('pesanan.bayar');
-
-        Route::patch(
-            '/pesanan/{pesanan}/batalkan',
-            [PembatalanPesananController::class, 'batalkan']
-        )->name('pesanan.batalkan');
 
         // KERANJANG - FIRJA
         Route::get('/keranjang', [KeranjangController::class, 'index'])
@@ -240,10 +242,21 @@ Route::middleware(['auth', 'peran:admin'])
             'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
         ])->name('pembayaran');
 
-        Route::view('/laporan', 'admin.placeholder', [
-            'judul' => 'Laporan',
-            'deskripsi' => 'Ringkasan produksi, stok, penjualan, dan pembayaran akan tampil di sini ketika datanya tersedia.',
-        ])->name('laporan');
+        // SPRINT 4 - HALAMAN UTAMA LAPORAN
+        Route::view('/laporan', 'admin.laporan.index')
+            ->name('laporan');
+
+        // SPRINT 4 - LAPORAN PRODUKSI PUTRI
+        Route::get(
+            '/laporan/produksi',
+            [LaporanProduksiController::class, 'index']
+        )->name('laporan.produksi');
+
+        // SPRINT 4 - LAPORAN STOK PUTRI
+        Route::get(
+            '/laporan/stok',
+            [LaporanStokController::class, 'index']
+        )->name('laporan.stok');
     });
 
 // PENENUN
