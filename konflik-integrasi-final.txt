@@ -1,0 +1,2297 @@
+﻿==================================================
+FILE: app/Http/Controllers/Admin/ProdukController.php
+==================================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\JenisProduk;
+use App\Models\Produk;
+use App\Models\ProdukFoto;
+use App\Models\Stok;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+
+class ProdukController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $perHalaman = (int) $request->input('per_halaman', 10);
+
+        if ($perHalaman < 1 || $perHalaman > 100) {
+            $perHalaman = 10;
+        }
+
+        $daftarProduk = Produk::query()
+            ->with(['stok', 'produkFoto', 'jenisProduk'])
+            ->when($request->filled('cari'), function ($query) use ($request) {
+                $cari = $request->string('cari')->toString();
+
+                $query->where(function ($sub) use ($cari) {
+                    $sub->where('kode_produk', 'like', "%{$cari}%")
+                        ->orWhere('nama_produk', 'like', "%{$cari}%")
+                        ->orWhere('motif', 'like', "%{$cari}%")
+                        ->orWhere('jenis', 'like', "%{$cari}%")
+                        ->orWhereHas('jenisProduk', function ($q) use ($cari) {
+                            $q->where('nama_jenis', 'like', "%{$cari}%");
+                        });
+                });
+            })
+            ->latest()
+            ->paginate($perHalaman)
+            ->withQueryString();
+
+        return view(
+            'admin.produk.index',
+            compact('daftarProduk')
+        );
+    }
+
+    public function create(): View
+    {
+        $kodeOtomatis = Produk::generateKodeProduk();
+        $daftarJenis = JenisProduk::orderBy('nama_jenis')->get();
+
+        return view(
+            'admin.produk.tambah',
+            compact('kodeOtomatis', 'daftarJenis')
+        );
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $this->validasi($request);
+
+        if (empty($data['kode_produk'])) {
+            $data['kode_produk'] = Produk::generateKodeProduk();
+        }
+
+        $jenisModel = JenisProduk::find($data['jenis_produk_id']);
+        $data['jenis'] = $jenisModel?->nama_jenis ?? '';
+
+        $uploadedFiles = [];
+
+        if ($request->hasFile('foto')) {
+            $files = $request->file('foto');
+
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $uploadedFiles[] = $file->store('produk', 'public');
+                }
+            }
+        }
+
+        if (!empty($uploadedFiles)) {
+            $data['foto'] = $uploadedFiles[0];
+        } else {
+            $data['foto'] = null;
+        }
+
+        DB::transaction(function () use ($data, $uploadedFiles) {
+            $produk = Produk::create($data);
+
+            Stok::create([
+                'produk_id' => $produk->id,
+                'jumlah_stok' => 0,
+            ]);
+
+            foreach ($uploadedFiles as $path) {
+                $produk->produkFoto()->create([
+                    'foto' => $path,
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('admin.produk.index')
+            ->with('success', 'Produk berhasil ditambahkan.');
+    }
+
+    public function edit(Produk $produk): View
+    {
+        $produk->load(['stok', 'produkFoto', 'jenisProduk']);
+
+        if (!empty($produk->foto) && $produk->produkFoto->isEmpty()) {
+            $produk->produkFoto()->create([
+                'foto' => $produk->foto,
+            ]);
+
+            $produk->load('produkFoto');
+        }
+
+        $daftarJenis = JenisProduk::orderBy('nama_jenis')->get();
+
+        return view(
+            'admin.produk.ubah',
+            compact('produk', 'daftarJenis')
+        );
+    }
+
+    public function update(Request $request, Produk $produk): RedirectResponse
+    {
+        $data = $this->validasi($request, $produk->id);
+
+        $data['kode_produk'] = $produk->kode_produk;
+
+        $jenisModel = JenisProduk::find($data['jenis_produk_id']);
+        $data['jenis'] = $jenisModel?->nama_jenis ?? '';
+
+        if (!array_key_exists('berat_gram', $data)) {
+            $data['berat_gram'] = $produk->berat_gram;
+        }
+
+        $uploadedFiles = [];
+
+        if ($request->hasFile('foto')) {
+            $files = $request->file('foto');
+
+            if (!is_array($files)) {
+                $files = [$files];
+            }
+
+            foreach ($files as $file) {
+                if ($file && $file->isValid()) {
+                    $uploadedFiles[] = $file->store('produk', 'public');
+                }
+            }
+        }
+
+        if (!empty($uploadedFiles) && empty($produk->foto)) {
+            $data['foto'] = $uploadedFiles[0];
+        } else {
+            $data['foto'] = $produk->foto;
+        }
+
+        DB::transaction(function () use ($produk, $data, $uploadedFiles) {
+            $produk->update($data);
+
+            foreach ($uploadedFiles as $path) {
+                $produk->produkFoto()->create([
+                    'foto' => $path,
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('admin.produk.index')
+            ->with('success', 'Produk berhasil diperbarui.');
+    }
+
+    public function destroyFoto(
+        Produk $produk,
+        ProdukFoto $foto
+    ): RedirectResponse {
+        abort_unless($foto->produk_id === $produk->id, 404);
+
+        if ($foto->foto) {
+            Storage::disk('public')->delete($foto->foto);
+        }
+
+        if ($produk->foto === $foto->foto) {
+            $nextFoto = $produk->produkFoto()
+                ->where('id', '!=', $foto->id)
+                ->first();
+
+            $produk->update([
+                'foto' => $nextFoto?->foto,
+            ]);
+        }
+
+        $foto->delete();
+
+        return back()->with(
+            'success',
+            'Foto produk berhasil dihapus.'
+        );
+    }
+
+    public function destroy(Produk $produk): RedirectResponse
+    {
+        $produk->loadMissing('stok');
+
+        $jumlahStok = (int) ($produk->stok?->jumlah_stok ?? 0);
+
+        if ($jumlahStok > 0) {
+            return redirect()
+                ->route('admin.produk.index')
+                ->with(
+                    'error',
+                    'Produk tidak dapat dihapus karena stok masih tersedia.'
+                );
+        }
+
+        $produk->load('produkFoto');
+
+        if ($produk->foto) {
+            Storage::disk('public')->delete($produk->foto);
+        }
+
+        foreach ($produk->produkFoto as $item) {
+            if ($item->foto && $item->foto !== $produk->foto) {
+                Storage::disk('public')->delete($item->foto);
+            }
+        }
+
+        $produk->produkFoto()->delete();
+        $produk->stok()->delete();
+        $produk->delete();
+
+        return redirect()
+            ->route('admin.produk.index')
+            ->with('success', 'Produk berhasil dihapus.');
+    }
+
+    private function validasi(
+        Request $request,
+        ?int $produkId = null
+    ): array {
+        if (
+            $request->has('harga') &&
+            is_string($request->input('harga'))
+        ) {
+            $rawHarga = preg_replace(
+                '/[^0-9]/',
+                '',
+                (string) $request->input('harga')
+            );
+
+            $request->merge([
+                'harga' => $rawHarga !== '' ? $rawHarga : null,
+            ]);
+        }
+
+<<<<<<< HEAD
+        return $request->validate([
+            'kode_produk' => [
+                'nullable',
+                'string',
+                'max:50',
+                'unique:produk,kode_produk' .
+                    ($produkId ? ',' . $produkId : ''),
+            ],
+            'nama_produk' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+            'jenis_produk_id' => [
+                'required',
+                'exists:jenis_produk,id',
+            ],
+            'motif' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'warna' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'ukuran' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'material' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'harga' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+            'foto' => [
+                'nullable',
+            ],
+            'foto.*' => [
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ],
+            'status' => [
+                'required',
+                'in:aktif,nonaktif',
+            ],
+        ], [
+=======
+        $rules = [
+            'kode_produk'=>['nullable','string','max:50','unique:produk,kode_produk'.($produkId?','.$produkId:'')],
+            'nama_produk'=>['required','string','max:100'],
+            'jenis_produk_id'=>['required','exists:jenis_produk,id'],
+            'motif'=>['nullable','string','max:100'],
+            'warna'=>['nullable','string','max:50'],
+            'ukuran'=>['nullable','string','max:50'],
+            'material'=>['nullable','string','max:100'],
+            'harga'=>['required','numeric','min:0'],
+            'foto'=>['nullable'],
+            'foto.*'=>['image','mimes:jpg,jpeg,png,webp','max:2048'],
+            'status'=>['required','in:aktif,nonaktif'],
+        ];
+
+        if ($produkId !== null && !$request->has('berat_gram')) {
+            // Update tanpa berat_gram tidak boleh gagal atau mereset berat
+        } else {
+            $rules['berat_gram'] = ['required', 'integer', 'min:1', 'max:100000'];
+        }
+
+        return $request->validate($rules, [
+>>>>>>> integrasi-sprint4-test
+            'nama_produk.required' => 'Nama produk wajib diisi.',
+            'jenis_produk_id.required' => 'Jenis produk wajib dipilih.',
+            'jenis_produk_id.exists' => 'Jenis produk yang dipilih tidak valid.',
+            'harga.required' => 'Harga produk wajib diisi.',
+            'harga.numeric' => 'Harga produk harus berupa angka.',
+            'harga.min' => 'Harga produk minimal Rp 0.',
+            'status.required' => 'Status produk wajib dipilih.',
+            'berat_gram.required' => 'Berat produk wajib diisi.',
+            'berat_gram.integer' => 'Berat produk harus berupa angka bulat (gram).',
+            'berat_gram.min' => 'Berat produk minimal 1 gram.',
+            'berat_gram.max' => 'Berat produk maksimal 100.000 gram.',
+            'foto.*.image' => 'File yang diunggah harus berupa gambar.',
+            'foto.*.mimes' => 'Format foto harus berupa JPG, JPEG, PNG, atau WEBP.',
+            'foto.*.max' => 'Ukuran setiap file foto maksimal 2MB.',
+        ]);
+    }
+}
+
+==================================================
+FILE: app/Models/Produk.php
+==================================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Produk extends Model
+{
+    use SoftDeletes;
+
+    protected $table = 'produk';
+<<<<<<< HEAD
+
+    protected $fillable = [
+        'kode_produk',
+        'nama_produk',
+        'jenis_produk_id',
+        'jenis',
+        'motif',
+        'warna',
+        'ukuran',
+        'material',
+        'harga',
+        'foto',
+        'status',
+    ];
+
+    // Harga tidak boleh di-cast menjadi decimal
+    // karena saat praktikum PML nilainya berupa ciphertext AES.
+
+    public function jenisProduk()
+    {
+        return $this->belongsTo(
+            JenisProduk::class,
+            'jenis_produk_id'
+        );
+    }
+
+    public function stok()
+    {
+        return $this->hasOne(Stok::class, 'produk_id');
+    }
+
+    public function targetProduksi()
+    {
+        return $this->hasMany(
+            TargetProduksi::class,
+            'produk_id'
+        );
+    }
+
+    public function detailKeranjang()
+    {
+        return $this->hasMany(
+            DetailKeranjang::class,
+            'produk_id'
+        );
+    }
+
+    public function detailPesanan()
+    {
+        return $this->hasMany(
+            DetailPesanan::class,
+            'produk_id'
+        );
+    }
+
+    public function produkFoto()
+    {
+        return $this->hasMany(
+            ProdukFoto::class,
+            'produk_id'
+        );
+    }
+
+    public function fotos()
+    {
+        return $this->hasMany(
+            ProdukFoto::class,
+            'produk_id'
+        );
+    }
+=======
+    protected $fillable=['kode_produk','nama_produk','jenis_produk_id','jenis','motif','warna','ukuran','material','harga','foto','status','berat_gram'];
+    protected function casts(): array { return ['harga'=>'decimal:2','berat_gram'=>'integer']; }
+    public function jenisProduk(){ return $this->belongsTo(JenisProduk::class, 'jenis_produk_id'); }
+    public function stok(){ return $this->hasOne(Stok::class,'produk_id'); }
+    public function targetProduksi(){ return $this->hasMany(TargetProduksi::class,'produk_id'); }
+    public function detailKeranjang(){ return $this->hasMany(DetailKeranjang::class,'produk_id'); }
+    public function detailPesanan(){ return $this->hasMany(DetailPesanan::class,'produk_id'); }
+    public function produkFoto(){ return $this->hasMany(ProdukFoto::class,'produk_id'); }
+    public function fotos(){ return $this->hasMany(ProdukFoto::class,'produk_id'); }
+>>>>>>> integrasi-sprint4-test
+
+    public function semuaFoto(): array
+    {
+        $daftar = $this->produkFoto
+            ->pluck('foto')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($daftar) && !empty($this->foto)) {
+            $daftar = [$this->foto];
+        }
+
+        return $daftar;
+    }
+
+    public function bisaDihapus(): bool
+    {
+        return (
+            (int) ($this->stok?->jumlah_stok ?? 0)
+        ) === 0;
+    }
+
+
+    public function getHargaFormatAttribute(): string
+    {
+        return 'Rp ' . number_format(
+            (float) ($this->harga ?? 0),
+            0,
+            ',',
+            '.'
+        );
+    }
+
+
+    public static function generateKodeProduk(): string
+    {
+        $lastProduct = static::withTrashed()
+            ->where('kode_produk', 'like', 'PRD-%')
+            ->orderByRaw(
+                'CAST(SUBSTRING(kode_produk, 5) AS UNSIGNED) DESC'
+            )
+            ->first();
+
+        if (
+            $lastProduct &&
+            preg_match(
+                '/PRD-(\d+)/',
+                $lastProduct->kode_produk,
+                $matches
+            )
+        ) {
+            $nextNumber = ((int) $matches[1]) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+
+        $candidate = sprintf(
+            'PRD-%03d',
+            $nextNumber
+        );
+
+        while (
+            static::withTrashed()
+                ->where('kode_produk', $candidate)
+                ->exists()
+        ) {
+            $nextNumber++;
+
+            $candidate = sprintf(
+                'PRD-%03d',
+                $nextNumber
+            );
+        }
+
+        return $candidate;
+    }
+}
+
+==================================================
+FILE: resources/views/admin/pesanan/index.blade.php
+==================================================
+@extends('layouts.app')
+
+@section('title', 'Pesanan - Palugada Bandar')
+
+@section('content')
+<div class="page-head admin-page-head-v4">
+    <div>
+        <span class="eyebrow">PENJUALAN</span>
+        <h1>Pesanan</h1>
+        <p>Pantau dan kelola pesanan pembeli.</p>
+    </div>
+</div>
+
+{{-- PENCARIAN DAN FILTER --}}
+<form class="toolbar admin-toolbar-v4 pesanan-toolbar"
+      method="GET"
+      action="{{ route('admin.pesanan.index') }}">
+
+    <input
+        name="cari"
+        value="{{ request('cari') }}"
+        placeholder="Cari kode pesanan, pembeli, atau penerima..."
+    >
+
+    <select name="status" aria-label="Filter status pesanan">
+        <option value="">Semua Status</option>
+
+        <option value="menunggu_pembayaran"
+            @selected(request('status') === 'menunggu_pembayaran')>
+            Menunggu Pembayaran
+        </option>
+
+        <option value="dibayar"
+            @selected(request('status') === 'dibayar')>
+            Dibayar
+        </option>
+
+        <option value="diproses"
+            @selected(request('status') === 'diproses')>
+            Diproses
+        </option>
+
+        <option value="selesai"
+            @selected(request('status') === 'selesai')>
+            Selesai
+        </option>
+
+        <option value="batal"
+            @selected(request('status') === 'batal')>
+            Dibatalkan
+        </option>
+    </select>
+
+    <button class="btn btn-secondary" type="submit">
+        Cari
+    </button>
+
+    @if(
+        (request('cari') !== null && request('cari') !== '')
+        || (request('status') !== null && request('status') !== '')
+    )
+        <a class="btn btn-outline"
+           href="{{ route('admin.pesanan.index') }}">
+            Reset
+        </a>
+    @endif
+</form>
+
+{{-- DAFTAR PESANAN --}}
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40px; text-align: center;">No</th>
+                <th>Kode Pesanan</th>
+                <th>Pembeli</th>
+                <th>Tanggal</th>
+                <th style="text-align: center; width: 70px;">Item</th>
+                <th>Total</th>
+                <th>Pembayaran</th>
+                <th>Status Pesanan</th>
+<<<<<<< HEAD
+                <th style="min-width: 150px; text-align: right;">Aksi</th>
+=======
+                <th style="width: 60px; text-align: right;">Aksi</th>
+>>>>>>> integrasi-sprint4-test
+            </tr>
+        </thead>
+
+        <tbody>
+<<<<<<< HEAD
+            @forelse($daftarPesanan as $index => $pesanan)
+                @php
+                    $pembayaranTerbaru = $pesanan->pembayaran->first();
+
+                    $bolehHapus = $pesanan->status_pesanan === 'batal'
+                        && !$pesanan->pembayaran->contains(
+                            fn ($bayar) => in_array(
+                                $bayar->status_pembayaran,
+                                ['menunggu', 'berhasil'],
+                                true
+                            )
+                        );
+                @endphp
+
+                <tr>
+                    <td>
+                        {{ $daftarPesanan->firstItem()
+                            ? $daftarPesanan->firstItem() + $index
+                            : $index + 1 }}
+                    </td>
+
+                    <td>
+                        <a href="{{ route('admin.pesanan.show', $pesanan) }}">
+                            <strong>{{ $pesanan->kode_pesanan }}</strong>
+                        </a>
+                    </td>
+
+                    <td>
+                        <div class="pesanan-buyer-info">
+                            <strong>
+                                {{ $pesanan->pembeli?->nama ?? '-' }}
+                            </strong>
+
+                            <small>
+                                {{ $pesanan->pembeli?->email ?? '-' }}
+                            </small>
+=======
+        @forelse($daftarPesanan as $index => $pesanan)
+            @php
+                $pembayaranTerbaru = $pesanan->pembayaran->first();
+            @endphp
+            <tr>
+                <td style="text-align: center;">{{ $daftarPesanan->firstItem() ? $daftarPesanan->firstItem() + $index : $index + 1 }}</td>
+                <td>
+                    <a href="{{ route('admin.pesanan.show', $pesanan) }}">
+                        <strong>{{ $pesanan->kode_pesanan }}</strong>
+                    </a>
+                </td>
+                <td>
+                    <div class="pesanan-buyer-info">
+                        <strong>{{ $pesanan->pembeli?->nama ?? '—' }}</strong>
+                        <small>{{ $pesanan->pembeli?->email ?? '—' }}</small>
+                    </div>
+                </td>
+                <td>{{ $pesanan->tanggal_pesanan?->translatedFormat('d M Y, H:i') ?? '—' }}</td>
+                <td style="text-align: center;">{{ $pesanan->detail_count ?? 0 }} item</td>
+                <td>
+                    <span class="pesanan-total">{{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}</span>
+                    @if((float) ($pesanan->ongkir ?? 0) > 0)
+                        <small class="pesanan-ongkir-note">Termasuk ongkir {{ \App\Support\LabelPesanan::formatRupiah($pesanan->ongkir) }}</small>
+                    @endif
+                </td>
+                <td>
+                    @if($pembayaranTerbaru)
+                        <div class="pesanan-payment-cell">
+                            <span class="pesanan-payment-method">{{ \App\Support\LabelPesanan::labelMetodePembayaran($pembayaranTerbaru->metode) }}</span>
+                            <span class="{{ \App\Support\LabelPesanan::classStatusPembayaran($pembayaranTerbaru->status_pembayaran) }}">
+                                {{ \App\Support\LabelPesanan::labelStatusPembayaran($pembayaranTerbaru->status_pembayaran) }}
+                            </span>
+>>>>>>> integrasi-sprint4-test
+                        </div>
+                    </td>
+
+                    <td>
+                        {{ $pesanan->tanggal_pesanan?->translatedFormat('d M Y, H:i') ?? '-' }}
+                    </td>
+
+                    <td style="text-align: center;">
+                        {{ $pesanan->detail_count ?? 0 }} item
+                    </td>
+
+                    <td>
+                        <span class="pesanan-total">
+                            {{ \App\Support\LabelPesanan::formatRupiah($pesanan->total) }}
+                        </span>
+                    </td>
+
+                    <td>
+                        @if($pembayaranTerbaru)
+                            <div class="pesanan-payment-cell">
+                                <span class="pesanan-payment-method">
+                                    {{ \App\Support\LabelPesanan::labelMetodePembayaran($pembayaranTerbaru->metode) }}
+                                </span>
+
+                                <span class="{{ \App\Support\LabelPesanan::classStatusPembayaran($pembayaranTerbaru->status_pembayaran) }}">
+                                    {{ \App\Support\LabelPesanan::labelStatusPembayaran($pembayaranTerbaru->status_pembayaran) }}
+                                </span>
+                            </div>
+                        @else
+                            -
+                        @endif
+                    </td>
+
+                    <td>
+                        <span class="{{ \App\Support\LabelPesanan::classStatusPesanan($pesanan->status_pesanan) }}">
+                            {{ \App\Support\LabelPesanan::labelStatusPesanan($pesanan->status_pesanan) }}
+                        </span>
+                    </td>
+
+                    <td class="aksi-pesanan">
+                        <div class="actions actions-kanan"
+                             style="display: flex; align-items: center; justify-content: flex-end; gap: 12px;">
+
+                            {{-- DETAIL --}}
+                            <a href="{{ route('admin.pesanan.show', $pesanan) }}">
+                                Detail
+                            </a>
+
+                            {{-- HAPUS: HANYA PESANAN BATAL --}}
+                            @if($bolehHapus)
+                                <form
+                                    method="POST"
+                                    action="{{ route('admin.pesanan.destroy', $pesanan) }}"
+                                    onsubmit="return confirm('Hapus pesanan ini dari daftar Admin? Riwayat transaksi tetap disimpan.');"
+                                    style="margin: 0;"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+
+                                    <button
+                                        type="submit"
+                                        style="border: none; background: transparent; padding: 0; color: #c0392b; cursor: pointer; font: inherit;"
+                                    >
+                                        Hapus
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+
+            @empty
+                <tr>
+                    <td colspan="9" class="empty">
+                        Belum ada pesanan.
+                    </td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+{{-- PAGINATION --}}
+<div class="pagination">
+    {{ $daftarPesanan->links('vendor.pagination.palugada') }}
+</div>
+@endsection
+
+==================================================
+FILE: resources/views/layouts/app.blade.php
+==================================================
+@php
+    $pengguna = auth()->user();
+
+    $adminArea = $pengguna?->peran === 'admin'
+        && request()->routeIs('admin.*');
+
+    $penenunArea = $pengguna?->peran === 'penenun'
+        && request()->routeIs('penenun.*');
+
+    $halamanAutentikasi = request()->routeIs(
+        'masuk',
+        'daftar',
+        'daftar.preferensi'
+    );
+
+    $pembeliMasuk = $pengguna?->peran === 'pembeli';
+
+    $pembeliArea = $pembeliMasuk
+        && request()->routeIs('pembeli.*');
+@endphp
+
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta name="theme-color" content="#163f32">
+
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>@yield('title', 'Palugada Bandar')</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+
+    <link
+        rel="stylesheet"
+        href="{{ asset('css/target-produksi-panjol-revisi.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ asset('css/palugada-ui-konsisten.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ asset('css/pesanan-admin.css') }}"
+    >
+</head>
+
+<body>
+
+<div class="shell">
+
+    {{-- ========================================= --}}
+    {{-- AREA ADMIN --}}
+    {{-- ========================================= --}}
+
+    @if($adminArea)
+
+        <aside class="sidebar admin-sidebar">
+
+            <a
+                href="{{ route('admin.beranda') }}"
+                class="brand admin-brand"
+            >
+                <div class="brand-mark" aria-hidden="true">
+                    PB
+                </div>
+
+                <div>
+                    <strong>Palugada Bandar</strong>
+                    <span>Dashboard Admin</span>
+                </div>
+            </a>
+
+            <p class="sidebar-label">
+                MENU UTAMA
+            </p>
+
+            <nav class="admin-nav" aria-label="Menu admin">
+<<<<<<< HEAD
+
+                <a
+                    href="{{ route('admin.beranda') }}"
+                    class="nav-link {{ request()->routeIs('admin.beranda') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Beranda</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.produk.index') }}"
+                    class="nav-link {{ request()->routeIs('admin.produk.*') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Produk</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.jenis-produk.index') }}"
+                    class="nav-link {{ request()->routeIs('admin.jenis-produk.*', 'admin.jenis_produk.*') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Jenis Produk</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.stok') }}"
+                    class="nav-link {{ request()->routeIs('admin.stok') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Stok</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.penenun.index') }}"
+                    class="nav-link {{ request()->routeIs('admin.penenun.*') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Data Penenun</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.target-produksi') }}"
+                    class="nav-link {{ request()->routeIs('admin.target-produksi') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Target Produksi</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.pesanan.index') }}"
+                    class="nav-link {{ request()->routeIs('admin.pesanan.*') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Pesanan</span>
+                </a>
+
+                <a
+                    href="{{ route('admin.laporan') }}"
+                    class="nav-link {{ request()->routeIs('admin.laporan') ? 'active' : '' }}"
+                >
+                    <span class="nav-dot"></span>
+                    <span>Laporan</span>
+                </a>
+
+=======
+                <a href="{{ route('admin.beranda') }}" class="nav-link {{ request()->routeIs('admin.beranda') ? 'active' : '' }}"><span class="nav-dot"></span><span>Beranda</span></a>
+                <a href="{{ route('admin.produk.index') }}" class="nav-link {{ request()->routeIs('admin.produk.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Produk</span></a>
+                <a href="{{ route('admin.jenis-produk.index') }}" class="nav-link {{ request()->routeIs('admin.jenis-produk.*', 'admin.jenis_produk.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Jenis Produk</span></a>
+                <a href="{{ route('admin.stok') }}" class="nav-link {{ request()->routeIs('admin.stok') ? 'active' : '' }}"><span class="nav-dot"></span><span>Stok</span></a>
+                <a href="{{ route('admin.penenun.index') }}" class="nav-link {{ request()->routeIs('admin.penenun.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Data Penenun</span></a>
+                <a href="{{ route('admin.target-produksi') }}" class="nav-link {{ request()->routeIs('admin.target-produksi') ? 'active' : '' }}"><span class="nav-dot"></span><span>Target Produksi</span></a>
+                <a href="{{ route('admin.pesanan.index') }}" class="nav-link {{ request()->routeIs('admin.pesanan.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pesanan</span></a>
+                <a href="{{ route('admin.pembayaran') }}" class="nav-link {{ request()->routeIs('admin.pembayaran') ? 'active' : '' }}"><span class="nav-dot"></span><span>Pembayaran</span></a>
+                <a href="{{ route('admin.laporan') }}" class="nav-link {{ request()->routeIs('admin.laporan', 'admin.laporan.*') ? 'active' : '' }}"><span class="nav-dot"></span><span>Laporan</span></a>
+>>>>>>> integrasi-sprint4-test
+            </nav>
+
+        </aside>
+
+        <main class="content admin-content">
+
+            <header class="admin-topbar">
+
+                <div>
+                    <span class="admin-topbar-label">
+                        PANEL PENGELOLA
+                    </span>
+
+                    <strong>Palugada Bandar</strong>
+                </div>
+
+                <div class="admin-user-menu">
+
+                    <div class="admin-avatar">
+                        {{ strtoupper(substr($pengguna->nama, 0, 1)) }}
+                    </div>
+
+                    <div class="admin-user-copy">
+                        <strong>{{ $pengguna->nama }}</strong>
+                        <span>{{ $pengguna->email }}</span>
+                    </div>
+
+                    <form
+                        action="{{ route('keluar') }}"
+                        method="POST"
+                    >
+                        @csrf
+
+                        <button
+                            class="btn btn-logout"
+                            type="submit"
+                        >
+                            Keluar
+                        </button>
+                    </form>
+
+                </div>
+
+            </header>
+
+            @if(session('success'))
+                <div class="toast success" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="toast error" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @yield('content')
+
+        </main>
+
+
+    {{-- ========================================= --}}
+    {{-- AREA PENENUN --}}
+    {{-- ========================================= --}}
+
+    @elseif($penenunArea)
+
+        <header class="worker-header">
+
+            <a
+                href="{{ route('penenun.beranda') }}"
+                class="brand worker-brand"
+            >
+                <div class="brand-mark">PB</div>
+
+                <div>
+                    <strong>Palugada Penenun</strong>
+                    <span>Ruang kerja pengrajin</span>
+                </div>
+            </a>
+
+            <div class="worker-header-actions">
+
+                <span class="worker-name">
+                    {{ $pengguna->nama }}
+                </span>
+
+                <form
+                    action="{{ route('keluar') }}"
+                    method="POST"
+                >
+                    @csrf
+
+                    <button
+                        class="btn btn-outline"
+                        type="submit"
+                    >
+                        Keluar
+                    </button>
+                </form>
+
+            </div>
+
+        </header>
+
+        <main class="worker-content">
+
+            @if(session('success'))
+                <div class="toast success" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="toast error" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @yield('content')
+
+        </main>
+
+
+    {{-- ========================================= --}}
+    {{-- AREA PEMBELI --}}
+    {{-- ========================================= --}}
+
+    @elseif($pembeliArea)
+
+        <header class="member-header">
+
+            <div class="member-header-inner">
+
+                <a
+                    href="{{ route('pembeli.katalog') }}"
+                    class="brand member-brand"
+                    aria-label="Koleksi Palugada Bandar"
+                >
+                    <div class="brand-mark">
+                        PB
+                    </div>
+
+                    <div>
+                        <strong>Palugada Bandar</strong>
+                        <span>Tenun Ikat</span>
+                    </div>
+                </a>
+
+                {{-- NAVIGASI PEMBELI --}}
+                <nav
+                    class="member-nav"
+                    aria-label="Menu pembeli"
+                >
+
+                    <a
+                        href="{{ route('pembeli.katalog') }}"
+                        class="{{ request()->routeIs('pembeli.katalog') ? 'active' : '' }}"
+                    >
+                        Koleksi
+                    </a>
+
+                    {{-- FITUR BARU: REKOMENDASI AI --}}
+                    <a
+                        href="{{ route('pembeli.rekomendasi') }}"
+                        class="{{ request()->routeIs('pembeli.rekomendasi') ? 'active' : '' }}"
+                    >
+                        Rekomendasi
+                    </a>
+
+                    <a
+                        href="{{ route('pembeli.pesanan') }}"
+                        class="{{ request()->routeIs('pembeli.pesanan') ? 'active' : '' }}"
+                    >
+                        Pesanan
+                    </a>
+
+                    <a
+                        href="{{ route('pembeli.keranjang') }}"
+                        class="{{ request()->routeIs('pembeli.keranjang') ? 'active' : '' }}"
+                    >
+                        Keranjang
+                    </a>
+
+                </nav>
+
+                {{-- PROFIL DAN LOGOUT --}}
+                <div class="member-user">
+
+                    <a
+                        href="{{ route('pembeli.profil') }}"
+                        class="member-user-link {{ request()->routeIs('pembeli.profil') ? 'active' : '' }}"
+                    >
+                        <span class="member-avatar">
+                            {{ strtoupper(substr($pengguna->nama, 0, 1)) }}
+                        </span>
+
+                        <span>
+                            <strong>{{ $pengguna->nama }}</strong>
+                            <small>Profil</small>
+                        </span>
+                    </a>
+
+                    <form
+                        action="{{ route('keluar') }}"
+                        method="POST"
+                    >
+                        @csrf
+
+                        <button
+                            class="member-logout"
+                            type="submit"
+                        >
+                            Keluar
+                        </button>
+                    </form>
+
+                </div>
+
+            </div>
+
+        </header>
+
+        <main class="member-content">
+
+            @if(session('success'))
+                <div class="toast success" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="toast error" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @yield('content')
+
+        </main>
+
+        <footer style="text-align: center;">
+            <p>
+                © {{ date('Y') }} Palugada Bandar
+            </p>
+        </footer>
+
+
+    {{-- ========================================= --}}
+    {{-- AREA PUBLIK --}}
+    {{-- ========================================= --}}
+
+    @elseif(!$halamanAutentikasi)
+
+        <header class="store-header">
+
+            <div class="store-header-main public-simple-header">
+
+                <a
+                    href="{{ route('landing') }}"
+                    class="brand store-brand"
+                >
+                    <div class="brand-mark">
+                        PB
+                    </div>
+
+                    <div>
+                        <strong>Palugada Bandar</strong>
+                        <span>Tenun Ikat</span>
+                    </div>
+                </a>
+
+                <nav
+                    class="public-nav"
+                    aria-label="Navigasi utama"
+                >
+
+                    <a href="{{ route('landing') }}">
+                        Beranda
+                    </a>
+
+                    <a href="{{ route('pembeli.katalog') }}">
+                        Koleksi
+                    </a>
+
+                    <a href="{{ route('landing') }}#tentang">
+                        Tentang
+                    </a>
+
+                    <a href="{{ route('landing') }}#keunggulan">
+                        Keunggulan
+                    </a>
+
+                </nav>
+
+                <div class="public-actions">
+
+                    @if($pengguna?->peran === 'admin')
+
+                        <a
+                            class="btn btn-outline"
+                            href="{{ route('admin.beranda') }}"
+                        >
+                            Dashboard Admin
+                        </a>
+
+                    @elseif($pengguna?->peran === 'penenun')
+
+                        <a
+                            class="btn btn-outline"
+                            href="{{ route('penenun.beranda') }}"
+                        >
+                            Ruang Penenun
+                        </a>
+
+                    @else
+
+                        <a
+                            class="btn btn-outline"
+                            href="{{ route('masuk') }}"
+                        >
+                            Masuk
+                        </a>
+
+                        <a
+                            class="btn btn-primary"
+                            href="{{ route('daftar') }}"
+                        >
+                            Daftar
+                        </a>
+
+                    @endif
+
+                </div>
+
+            </div>
+
+        </header>
+
+        <main class="store-content">
+
+            @if(session('success'))
+                <div class="toast success" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="toast error" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @yield('content')
+
+        </main>
+
+        <footer
+            class="store-footer store-footer-final"
+            id="bantuan"
+        >
+
+            <div class="footer-final-main">
+
+                <div class="footer-final-brand">
+
+                    <a
+                        href="{{ route('landing') }}"
+                        class="brand footer-brand-final"
+                    >
+                        <div class="brand-mark">
+                            PB
+                        </div>
+
+                        <div>
+                            <strong>Palugada Bandar</strong>
+                            <span>Tenun Ikat</span>
+                        </div>
+                    </a>
+
+                    <p>
+                        Tenun ikat khas Bandar dengan koleksi
+                        yang mudah dilihat dan informasi
+                        produk yang jelas.
+                    </p>
+
+                </div>
+
+                <nav
+                    class="footer-final-group"
+                    aria-label="Jelajahi Palugada"
+                >
+
+                    <strong>Jelajahi</strong>
+
+                    <a href="{{ route('pembeli.katalog') }}">
+                        Koleksi
+                    </a>
+
+                    <a href="{{ route('landing') }}#tentang">
+                        Tentang Palugada
+                    </a>
+
+                    <a href="{{ route('landing') }}#keunggulan">
+                        Keunggulan
+                    </a>
+
+                </nav>
+
+                <div class="footer-final-group footer-final-location">
+
+                    <strong>Kunjungi</strong>
+
+                    <span>Bandar, Kediri</span>
+                    <span>Jawa Timur</span>
+
+                </div>
+
+            </div>
+
+            <div class="footer-final-bottom">
+
+                <span>
+                    © {{ date('Y') }} Palugada Bandar
+                </span>
+
+            </div>
+
+        </footer>
+
+
+    {{-- ========================================= --}}
+    {{-- AREA AUTENTIKASI --}}
+    {{-- ========================================= --}}
+
+    @else
+
+        <main class="auth-content">
+
+            @if(session('success'))
+                <div class="toast success" role="status">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="toast error" role="alert">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @yield('content')
+
+        </main>
+
+    @endif
+
+</div>
+<<<<<<< HEAD
+
+<script
+    src="{{ asset('js/app.js') }}"
+    defer
+></script>
+
+=======
+<script src="{{ asset('js/app.js') }}" defer></script>
+@stack('scripts')
+>>>>>>> integrasi-sprint4-test
+</body>
+</html>
+
+==================================================
+FILE: routes/web.php
+==================================================
+<?php
+
+use App\Http\Controllers\Admin\BerandaController;
+use App\Http\Controllers\Admin\JenisProdukController;
+use App\Http\Controllers\Admin\TargetProduksiController;
+use App\Http\Controllers\Admin\StokController;
+use App\Http\Controllers\Admin\PesananController;
+use App\Http\Controllers\Admin\PenenunController;
+use App\Http\Controllers\Admin\ProdukController;
+
+use App\Http\Controllers\AutentikasiController;
+
+use App\Http\Controllers\Pembeli\AkunController;
+use App\Http\Controllers\Pembeli\KeranjangController;
+use App\Http\Controllers\Pembeli\CheckoutController;
+use App\Http\Controllers\Pembeli\PembayaranController;
+use App\Http\Controllers\Pembeli\PembatalanPesananController;
+<<<<<<< HEAD
+use App\Services\RekomendasiProdukService;
+use App\Models\Produk;
+use App\Http\Controllers\Pembeli\RekomendasiController;
+use Illuminate\Support\Facades\Route;
+
+=======
+use App\Http\Controllers\Pembeli\OngkirController;
+
+use App\Http\Controllers\Admin\LaporanProduksiController;
+use App\Http\Controllers\Admin\LaporanStokController;
+
+use App\Models\Produk;
+
+use Illuminate\Support\Facades\Route;
+
+
+>>>>>>> integrasi-sprint4-test
+// ==========================================
+// LANDING PAGE
+// ==========================================
+
+Route::get('/', function () {
+
+    if (auth()->check()) {
+        return match (auth()->user()->peran) {
+            'admin' => redirect()->route('admin.beranda'),
+            'penenun' => redirect()->route('penenun.beranda'),
+            default => redirect()->route('pembeli.katalog'),
+        };
+    }
+
+    $produkPilihan = Produk::query()
+        ->with('stok')
+        ->where('status', 'aktif')
+        ->latest()
+        ->take(4)
+        ->get();
+
+    return view(
+        'pembeli.landing',
+        compact('produkPilihan')
+    );
+
+})->name('landing');
+
+<<<<<<< HEAD
+    // ==========================================
+    // KATALOG PRODUK
+    // ==========================================
+=======
+
+// ==========================================
+// KATALOG PRODUK
+// ==========================================
+
+Route::get('/katalog', function () {
+
+    $cari = trim((string) request('cari', ''));
+
+    $jenis = trim((string) request('jenis', ''));
+>>>>>>> integrasi-sprint4-test
+
+    Route::get('/katalog', function () {
+        $cari = trim((string) request('cari', ''));
+        $jenis = trim((string) request('jenis', ''));
+
+        $hargaMin = request()->filled('harga_min')
+            ? max(0, (float) request('harga_min'))
+            : null;
+
+        $hargaMax = request()->filled('harga_max')
+            ? max(0, (float) request('harga_max'))
+            : null;
+
+<<<<<<< HEAD
+        $stokTersedia = request('stok_tersedia') === '1';
+
+        $daftarProduk = Produk::query()
+            ->with('stok')
+            ->where('status', 'aktif')
+            ->when($cari, function ($query) use ($cari) {
+                $query->where(function ($sub) use ($cari) {
+                    $sub->where('nama_produk', 'like', "%{$cari}%")
+                        ->orWhere('kode_produk', 'like', "%{$cari}%")
+                        ->orWhere('jenis', 'like', "%{$cari}%")
+                        ->orWhere('motif', 'like', "%{$cari}%")
+                        ->orWhere('warna', 'like', "%{$cari}%");
+                });
+            })
+            ->when($jenis, fn ($query) =>
+                $query->where('jenis', $jenis)
+            )
+            ->when($hargaMin !== null, fn ($query) =>
+                $query->where('harga', '>=', $hargaMin)
+            )
+            ->when($hargaMax !== null, fn ($query) =>
+                $query->where('harga', '<=', $hargaMax)
+            )
+            ->when($stokTersedia, fn ($query) =>
+                $query->whereHas('stok', function ($stok) {
+                    $stok->where('jumlah_stok', '>', 0);
+                })
+            )
+            ->latest()
+            ->get();
+=======
+    $daftarProduk = Produk::query()
+        ->with('stok')
+        ->where('status', 'aktif')
+
+        ->when($cari, function ($query) use ($cari) {
+
+            $query->where(function ($sub) use ($cari) {
+
+                $sub->where(
+                    'nama_produk',
+                    'like',
+                    "%{$cari}%"
+                )
+                ->orWhere(
+                    'kode_produk',
+                    'like',
+                    "%{$cari}%"
+                )
+                ->orWhere(
+                    'jenis',
+                    'like',
+                    "%{$cari}%"
+                )
+                ->orWhere(
+                    'motif',
+                    'like',
+                    "%{$cari}%"
+                )
+                ->orWhere(
+                    'warna',
+                    'like',
+                    "%{$cari}%"
+                );
+
+            });
+
+        })
+
+        ->when($jenis, fn ($query) =>
+            $query->where('jenis', $jenis)
+        )
+
+        ->when($hargaMin !== null, fn ($query) =>
+            $query->where('harga', '>=', $hargaMin)
+        )
+
+        ->when($hargaMax !== null, fn ($query) =>
+            $query->where('harga', '<=', $hargaMax)
+        )
+
+        ->when($stokTersedia, fn ($query) =>
+            $query->whereHas('stok', function ($stok) {
+                $stok->where('jumlah_stok', '>', 0);
+            })
+        )
+
+        ->latest()
+        ->get();
+>>>>>>> integrasi-sprint4-test
+
+        $jenisProduk = Produk::query()
+            ->where('status', 'aktif')
+            ->whereNotNull('jenis')
+            ->where('jenis', '!=', '')
+            ->select('jenis')
+            ->distinct()
+            ->orderBy('jenis')
+            ->pluck('jenis');
+
+
+    $rekomendasiProduk = collect();
+    $produkTerlaris = collect();
+
+    if (
+        auth()->check() &&
+        auth()->user()->peran === 'pembeli'
+    ) {
+        $service = app(RekomendasiProdukService::class);
+
+        $rekomendasiProduk = $service->rekomendasiUntuk(
+            auth()->user(),
+            4
+        );
+
+        $produkTerlaris = $service->produkTerlaris(4);
+    }
+
+        return view('pembeli.katalog', compact(
+        'daftarProduk',
+        'jenisProduk',
+        'cari',
+        'jenis',
+        'hargaMin',
+        'hargaMax',
+        'stokTersedia',
+        'rekomendasiProduk',
+        'produkTerlaris'
+    ));
+
+})->name('pembeli.katalog');
+
+<<<<<<< HEAD
+
+// ==========================================
+// AUTENTIKASI DAN REGISTRASI
+// ==========================================
+
+Route::middleware('guest')->group(function () {
+
+    // LOGIN
+    Route::get(
+        '/masuk',
+        [AutentikasiController::class, 'tampilMasuk']
+    )->name('masuk');
+
+    Route::post(
+        '/masuk',
+        [AutentikasiController::class, 'masuk']
+    )->name('masuk.proses');
+=======
+
+// ==========================================
+// AUTENTIKASI
+// ==========================================
+
+Route::middleware('guest')->group(function () {
+
+    // LOGIN
+>>>>>>> integrasi-sprint4-test
+
+    Route::get(
+        '/masuk',
+        [AutentikasiController::class, 'tampilMasuk']
+    )->name('masuk');
+
+<<<<<<< HEAD
+
+    // REGISTRASI AKUN
+    Route::get(
+        '/daftar',
+        [AutentikasiController::class, 'tampilDaftar']
+    )->name('daftar');
+
+    Route::post(
+        '/daftar',
+        [AutentikasiController::class, 'daftar']
+    )->name('daftar.proses');
+
+
+    // ==========================================
+    // FITUR BARU: PREFERENSI SETELAH REGISTRASI
+    // ==========================================
+
+    // Halaman pemilihan kategori favorit
+    Route::get(
+        '/daftar/preferensi',
+        [AutentikasiController::class, 'tampilPreferensi']
+    )->name('daftar.preferensi');
+
+    // Simpan preferensi pengguna
+    Route::post(
+        '/daftar/preferensi',
+        [AutentikasiController::class, 'simpanPreferensi']
+    )->name('daftar.preferensi.simpan');
+
+    // Lewati pemilihan preferensi
+    Route::post(
+        '/daftar/preferensi/lewati',
+        [AutentikasiController::class, 'lewatiPreferensi']
+    )->name('daftar.preferensi.lewati');
+
+});
+
+
+// ==========================================
+// LOGOUT
+// ==========================================
+
+Route::post(
+    '/keluar',
+    [AutentikasiController::class, 'keluar']
+)
+    ->middleware('auth')
+    ->name('keluar');
+
+
+// ==========================================
+// PEMBELI
+=======
+    Route::post(
+        '/masuk',
+        [AutentikasiController::class, 'masuk']
+    )->name('masuk.proses');
+
+    Route::get(
+        '/login',
+        fn () => redirect('/masuk')
+    )->name('login');
+
+
+    // REGISTRASI
+
+    Route::get(
+        '/daftar',
+        [AutentikasiController::class, 'tampilDaftar']
+    )->name('daftar');
+
+    Route::post(
+        '/daftar',
+        [AutentikasiController::class, 'daftar']
+    )->name('daftar.proses');
+
+});
+
+
+// ==========================================
+// LOGOUT
+// ==========================================
+
+Route::post(
+    '/keluar',
+    [AutentikasiController::class, 'keluar']
+)
+->middleware('auth')
+->name('keluar');
+
+
+// ==========================================
+// AREA PEMBELI
+>>>>>>> integrasi-sprint4-test
+// ==========================================
+
+Route::middleware(['auth', 'peran:pembeli'])
+    ->prefix('akun')
+    ->name('pembeli.')
+    ->group(function () {
+
+<<<<<<< HEAD
+        Route::get(
+            '/',
+            [AkunController::class, 'beranda']
+        )->name('akun');
+
+        Route::get(
+            '/profil',
+            [AkunController::class, 'profil']
+        )->name('profil');
+
+        Route::put(
+            '/profil',
+            [AkunController::class, 'perbaruiProfil']
+        )->name('profil.perbarui');
+
+        Route::get(
+            '/pesanan',
+            [AkunController::class, 'pesanan']
+        )->name('pesanan');
+
+        Route::get(
+            '/pesanan/{pesanan}/bayar',
+            [PembayaranController::class, 'lanjutkan']
+        )->name('pesanan.bayar');
+=======
+        // AKUN
+
+        Route::get(
+            '/',
+            [AkunController::class, 'beranda']
+        )->name('akun');
+
+
+        // PROFIL
+
+        Route::get(
+            '/profil',
+            [AkunController::class, 'profil']
+        )->name('profil');
+
+        Route::put(
+            '/profil',
+            [AkunController::class, 'perbaruiProfil']
+        )->name('profil.perbarui');
+
+
+        // RIWAYAT PESANAN
+
+        Route::get(
+            '/pesanan',
+            [AkunController::class, 'pesanan']
+        )->name('pesanan');
+
+
+        // LANJUTKAN PEMBAYARAN MIDTRANS
+        // Route GET Sprint 3 dipertahankan.
+
+        Route::get(
+            '/pesanan/{pesanan}/bayar',
+            [PembayaranController::class, 'lanjutkan']
+        )->name('pesanan.bayar');
+
+
+        // CEK STATUS PEMBAYARAN
+        // Fitur tambahan dari branch Panjol.
+
+        Route::post(
+            '/pesanan/{pesanan}/cek-status',
+            [AkunController::class, 'cekStatus']
+        )->name('pesanan.cek-status');
+
+
+        // PEMBATALAN PESANAN
+>>>>>>> integrasi-sprint4-test
+
+        Route::patch(
+            '/pesanan/{pesanan}/batalkan',
+            [PembatalanPesananController::class, 'batalkan']
+        )->name('pesanan.batalkan');
+
+
+        // ==================================
+        // KERANJANG - FIRJA
+        // ==================================
+
+        Route::get(
+            '/keranjang',
+            [KeranjangController::class, 'index']
+        )->name('keranjang');
+
+        Route::post(
+            '/keranjang',
+            [KeranjangController::class, 'tambah']
+        )->name('keranjang.tambah');
+
+        Route::put(
+            '/keranjang/{detail}',
+            [KeranjangController::class, 'ubah']
+        )->name('keranjang.ubah');
+
+        Route::delete(
+            '/keranjang/{detail}',
+            [KeranjangController::class, 'hapus']
+        )->name('keranjang.hapus');
+
+<<<<<<< HEAD
+        Route::get(
+            '/checkout',
+            [CheckoutController::class, 'index']
+        )->name('checkout');
+
+        Route::post(
+            '/checkout',
+            [CheckoutController::class, 'simpan']
+        )->name('checkout.simpan');
+
+        Route::post(
+            '/keranjang/pilih-checkout',
+            [KeranjangController::class, 'pilihCheckout']
+        )->name('keranjang.pilih-checkout');
+
+        Route::get(
+            '/rekomendasi',
+            [RekomendasiController::class, 'index']
+        )->name('rekomendasi');
+
+=======
+
+        // MEMILIH PRODUK UNTUK CHECKOUT
+
+        Route::post(
+            '/keranjang/pilih-checkout',
+            [KeranjangController::class, 'pilihCheckout']
+        )->name('keranjang.pilih-checkout');
+
+
+        // ==================================
+        // CHECKOUT
+        // ==================================
+
+        Route::get(
+            '/checkout',
+            [CheckoutController::class, 'index']
+        )->name('checkout');
+
+        Route::post(
+            '/checkout',
+            [CheckoutController::class, 'simpan']
+        )->name('checkout.simpan');
+
+>>>>>>> integrasi-sprint4-test
+    });
+
+
+// ==========================================
+<<<<<<< HEAD
+// ADMIN
+=======
+// API ONGKIR UNTUK PEMBELI - PANJOL
+// ==========================================
+
+Route::middleware(['auth', 'peran:pembeli'])
+    ->prefix('akun/ongkir')
+    ->name('pembeli.ongkir.')
+    ->group(function () {
+
+        // CARI TUJUAN PENGIRIMAN
+
+        Route::get(
+            '/tujuan',
+            [OngkirController::class, 'tujuan']
+        )
+        ->middleware('throttle:30,1')
+        ->name('tujuan');
+
+
+        // AMBIL OPSI KURIR DAN ONGKIR
+
+        Route::get(
+            '/opsi',
+            [OngkirController::class, 'opsi']
+        )
+        ->middleware('throttle:20,1')
+        ->name('opsi');
+
+    });
+
+
+// ==========================================
+// AREA ADMIN
+>>>>>>> integrasi-sprint4-test
+// ==========================================
+
+Route::middleware(['auth', 'peran:admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+
+<<<<<<< HEAD
+        Route::get(
+            '/beranda',
+            BerandaController::class
+        )->name('beranda');
+
+
+        // PRODUK
+        Route::resource('produk', ProdukController::class)
+            ->except(['show']);
+=======
+        // DASHBOARD ADMIN
+
+        Route::get(
+            '/beranda',
+            BerandaController::class
+        )->name('beranda');
+
+
+        // ==================================
+        // PRODUK
+        // ==================================
+
+        Route::resource(
+            'produk',
+            ProdukController::class
+        )->except(['show']);
+>>>>>>> integrasi-sprint4-test
+
+        Route::delete(
+            'produk/{produk}/foto/{foto}',
+            [ProdukController::class, 'destroyFoto']
+        )->name('produk.foto.destroy');
+
+<<<<<<< HEAD
+
+        // JENIS PRODUK
+        Route::resource(
+            'jenis-produk',
+            JenisProdukController::class
+        )
+            ->parameters(['jenis-produk' => 'jenisProduk'])
+            ->except(['show']);
+
+        Route::resource(
+            'jenis_produk',
+            JenisProdukController::class
+        )
+            ->parameters(['jenis_produk' => 'jenisProduk'])
+            ->names('jenis_produk')
+            ->except(['show']);
+
+
+        // PENENUN
+        Route::resource('penenun', PenenunController::class)
+            ->except(['show']);
+
+
+        // STOK
+        Route::get(
+            '/stok',
+            [StokController::class, 'index']
+        )->name('stok');
+
+
+        // TARGET PRODUKSI
+        Route::get(
+            '/target-produksi/create',
+            [TargetProduksiController::class, 'create']
+        )->name('target-produksi.create');
+
+        Route::get(
+            '/target-produksi',
+            [TargetProduksiController::class, 'index']
+        )->name('target-produksi');
+
+        Route::post(
+            '/target-produksi',
+            [TargetProduksiController::class, 'store']
+        )->name('target-produksi.store');
+
+        Route::get(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'show']
+        )->name('target-produksi.show');
+
+        Route::put(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'update']
+        )->name('target-produksi.update');
+
+        Route::delete(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'destroy']
+        )->name('target-produksi.destroy');
+
+        Route::patch(
+            '/target-produksi/{target}/batal',
+            [TargetProduksiController::class, 'cancel']
+        )->name('target-produksi.cancel');
+=======
+
+        // ==================================
+        // JENIS PRODUK
+        // ==================================
+
+        Route::resource(
+            'jenis-produk',
+            JenisProdukController::class
+        )
+        ->parameters([
+            'jenis-produk' => 'jenisProduk'
+        ])
+        ->except(['show']);
+
+        Route::resource(
+            'jenis_produk',
+            JenisProdukController::class
+        )
+        ->parameters([
+            'jenis_produk' => 'jenisProduk'
+        ])
+        ->names('jenis_produk')
+        ->except(['show']);
+
+
+        // ==================================
+        // PENENUN
+        // ==================================
+
+        Route::resource(
+            'penenun',
+            PenenunController::class
+        )->except(['show']);
+
+
+        // ==================================
+        // STOK
+        // ==================================
+
+        Route::get(
+            '/stok',
+            [StokController::class, 'index']
+        )->name('stok');
+>>>>>>> integrasi-sprint4-test
+
+
+        // ==================================
+        // TARGET PRODUKSI
+        // ==================================
+
+        Route::get(
+            '/target-produksi/create',
+            [TargetProduksiController::class, 'create']
+        )->name('target-produksi.create');
+
+        Route::get(
+            '/target-produksi',
+            [TargetProduksiController::class, 'index']
+        )->name('target-produksi');
+
+        Route::post(
+            '/target-produksi',
+            [TargetProduksiController::class, 'store']
+        )->name('target-produksi.store');
+
+        Route::get(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'show']
+        )->name('target-produksi.show');
+
+        Route::put(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'update']
+        )->name('target-produksi.update');
+
+        Route::delete(
+            '/target-produksi/{target}',
+            [TargetProduksiController::class, 'destroy']
+        )->name('target-produksi.destroy');
+
+        Route::patch(
+            '/target-produksi/{target}/batal',
+            [TargetProduksiController::class, 'cancel']
+        )->name('target-produksi.cancel');
+
+
+        // ==================================
+        // PESANAN ADMIN - PANJOL
+<<<<<<< HEAD
+        Route::resource(
+            'pesanan',
+            PesananController::class
+        )->only(['index', 'show', 'destroy']);
+=======
+        // ==================================
+
+        Route::resource(
+            'pesanan',
+            PesananController::class
+        )->only([
+            'index',
+            'show'
+        ]);
+
+
+        // UBAH STATUS PESANAN
+>>>>>>> integrasi-sprint4-test
+
+        Route::patch(
+            '/pesanan/{pesanan}/status',
+            [PesananController::class, 'ubahStatus']
+        )->name('pesanan.status');
+
+
+        // KONFIRMASI PEMBAYARAN ADMIN
+
+        Route::post(
+            '/pesanan/{pesanan}/konfirmasi-pembayaran',
+            [PesananController::class, 'konfirmasiPembayaran']
+        )->name('pesanan.konfirmasi-pembayaran');
+
+<<<<<<< HEAD
+
+        // HALAMAN PLACEHOLDER
+        Route::view('/pembayaran', 'admin.placeholder', [
+            'judul' => 'Pembayaran',
+            'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
+        ])->name('pembayaran');
+
+        Route::view('/laporan', 'admin.placeholder', [
+            'judul' => 'Laporan',
+            'deskripsi' => 'Ringkasan produksi, stok, penjualan, dan pembayaran akan tampil di sini ketika datanya tersedia.',
+        ])->name('laporan');
+=======
+
+        // ==================================
+        // HALAMAN PEMBAYARAN
+        // ==================================
+
+        Route::view(
+            '/pembayaran',
+            'admin.placeholder',
+            [
+                'judul' => 'Pembayaran',
+                'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
+            ]
+        )->name('pembayaran');
+        
+        // ==================================
+        // LAPORAN SPRINT 4 - PUTRI
+        // ==================================
+
+        // Halaman utama laporan
+        Route::view(
+            '/laporan',
+            'admin.laporan.index'
+        )->name('laporan');
+
+        // Laporan produksi
+        Route::get(
+            '/laporan/produksi',
+            [LaporanProduksiController::class, 'index']
+        )->name('laporan.produksi');
+
+        // Laporan stok
+        Route::get(
+            '/laporan/stok',
+            [LaporanStokController::class, 'index']
+        )->name('laporan.stok');
+
+>>>>>>> integrasi-sprint4-test
+
+    });
+
+
+// ==========================================
+<<<<<<< HEAD
+// PENENUN
+=======
+// AREA PENENUN
+>>>>>>> integrasi-sprint4-test
+// ==========================================
+
+Route::middleware(['auth', 'peran:penenun'])
+    ->get(
+        '/penenun',
+        fn () => view('penenun.beranda', [
+            'pengguna' => auth()->user()->load('profilPenenun'),
+        ])
+    )
+    ->name('penenun.beranda');
+

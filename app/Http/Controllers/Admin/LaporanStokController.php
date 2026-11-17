@@ -2,87 +2,133 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\LaporanStokExport;
 use App\Http\Controllers\Controller;
-use App\Models\Stok;
 use App\Models\MutasiStok;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanStokController extends Controller
 {
-    public function index(Request $request)
+    private function query(Request $request)
+    {
+        return MutasiStok::query()
+            ->with([
+                'stok.produk',
+                'hasilProduksi.targetProduksi',
+                'detailPesanan.pesanan',
+            ])
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $cari = trim((string) $request->query('q'));
+
+                $query->where(function ($sub) use ($cari) {
+                    $sub->where('catatan', 'like', "%{$cari}%")
+                        ->orWhereHas('stok.produk', function ($produk) use ($cari) {
+                            $produk->where('nama_produk', 'like', "%{$cari}%")
+                                ->orWhere('kode_produk', 'like', "%{$cari}%");
+                        })
+                        ->orWhereHas('detailPesanan.pesanan', function ($pesanan) use ($cari) {
+                            $pesanan->where('kode_pesanan', 'like', "%{$cari}%");
+                        });
+                });
+            })
+            ->when($request->filled('tanggal_mulai'), fn ($query) =>
+                $query->whereDate('tanggal_mutasi', '>=', $request->query('tanggal_mulai'))
+            )
+            ->when($request->filled('tanggal_akhir'), fn ($query) =>
+                $query->whereDate('tanggal_mutasi', '<=', $request->query('tanggal_akhir'))
+            )
+            ->when($request->filled('jenis_mutasi'), fn ($query) =>
+                $query->where('jenis_mutasi', $request->query('jenis_mutasi'))
+            )
+            ->when($request->filled('sumber'), fn ($query) =>
+                $query->where('sumber', $request->query('sumber'))
+            );
+    }
+
+    private function validateFilters(Request $request): void
     {
         $request->validate([
-            'tanggal_mulai' => 'nullable|date',
-            'tanggal_akhir' => 'nullable|date|after_or_equal:tanggal_mulai',
-            'jenis_mutasi' => 'nullable|in:masuk,keluar,penyesuaian',
+            'q' => ['nullable', 'string', 'max:120'],
+            'tanggal_mulai' => ['nullable', 'date'],
+            'tanggal_akhir' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
+            'jenis_mutasi' => ['nullable', 'in:masuk,keluar,penyesuaian'],
+            'sumber' => ['nullable', 'in:produksi,penjualan,non_penjualan'],
         ]);
+    }
 
-        // Ringkasan stok saat ini
-        $totalJenisProduk = Stok::whereHas('produk')->count();
+    public function index(Request $request)
+    {
+        $this->validateFilters($request);
 
-        $totalStok = Stok::whereHas('produk')
-            ->sum('jumlah_stok');
+        $query = $this->query($request);
+        $totalMasuk = (clone $query)->where('jenis_mutasi', 'masuk')->sum('jumlah');
+        $totalKeluar = (clone $query)->where('jenis_mutasi', 'keluar')->sum('jumlah');
+        $totalPenyesuaian = (clone $query)->where('jenis_mutasi', 'penyesuaian')->sum('jumlah');
 
-        $stokHabis = Stok::whereHas('produk')
-            ->where('jumlah_stok', '<=', 0)
-            ->count();
-
-        // Daftar stok per produk
-        $daftarStok = Stok::with('produk')
-            ->whereHas('produk')
-            ->orderBy('produk_id')
-            ->paginate(10, ['*'], 'stok_page')
-            ->withQueryString();
-
-        // Riwayat mutasi stok
-        $queryMutasi = MutasiStok::with('stok.produk');
-
-        if ($request->filled('tanggal_mulai')) {
-            $queryMutasi->whereDate(
-                'tanggal_mutasi',
-                '>=',
-                $request->tanggal_mulai
-            );
-        }
-
-        if ($request->filled('tanggal_akhir')) {
-            $queryMutasi->whereDate(
-                'tanggal_mutasi',
-                '<=',
-                $request->tanggal_akhir
-            );
-        }
-
-        if ($request->filled('jenis_mutasi')) {
-            $queryMutasi->where(
-                'jenis_mutasi',
-                $request->jenis_mutasi
-            );
-        }
-
-        // Ringkasan mutasi sesuai filter
-        $totalMasuk = (clone $queryMutasi)
-            ->where('jenis_mutasi', 'masuk')
-            ->sum('jumlah');
-
-        $totalKeluar = (clone $queryMutasi)
-            ->where('jenis_mutasi', 'keluar')
-            ->sum('jumlah');
-
-        $riwayatMutasi = $queryMutasi
+        $riwayatMutasi = $query
             ->orderByDesc('tanggal_mutasi')
             ->orderByDesc('id')
-            ->paginate(10, ['*'], 'mutasi_page')
+            ->paginate(15)
             ->withQueryString();
 
         return view('admin.laporan.stok', compact(
-            'totalJenisProduk',
-            'totalStok',
-            'stokHabis',
-            'daftarStok',
+            'riwayatMutasi',
             'totalMasuk',
             'totalKeluar',
-            'riwayatMutasi'
+            'totalPenyesuaian'
         ));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $this->validateFilters($request);
+
+        $data = $this->query($request)
+            ->orderByDesc('tanggal_mutasi')
+            ->orderByDesc('id')
+            ->get();
+
+        return Excel::download(
+            new LaporanStokExport($data),
+            'laporan-mutasi-stok-' . now()->format('Ymd-His') . '.xlsx'
+        );
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $this->validateFilters($request);
+
+        $data = $this->query($request)
+            ->orderByDesc('tanggal_mutasi')
+            ->orderByDesc('id')
+            ->get();
+
+        $headers = ['Tanggal', 'Kode Produk', 'Produk', 'Jenis Mutasi', 'Jumlah', 'Sumber', 'Referensi', 'Catatan'];
+        $rows = $data->map(function ($item) {
+            $referensi = $item->detailPesanan?->pesanan?->kode_pesanan
+                ?? ($item->hasilProduksi?->targetProduksi ? 'Target #' . $item->hasilProduksi->targetProduksi->id : '-');
+
+            return [
+                $item->tanggal_mutasi?->format('d/m/Y H:i') ?? '-',
+                $item->stok?->produk?->kode_produk ?? '-',
+                $item->stok?->produk?->nama_produk ?? '-',
+                ucfirst($item->jenis_mutasi),
+                (int) $item->jumlah,
+                ucfirst(str_replace('_', ' ', $item->sumber)),
+                $referensi,
+                $item->catatan ?: '-',
+            ];
+        })->all();
+
+        return Pdf::loadView('admin.laporan.pdf', [
+            'judul' => 'Laporan Mutasi Stok',
+            'deskripsi' => 'Riwayat perubahan stok berdasarkan transaksi dan produksi.',
+            'headers' => $headers,
+            'rows' => $rows,
+            'filter' => $request->only(['q', 'tanggal_mulai', 'tanggal_akhir', 'jenis_mutasi', 'sumber']),
+        ])->setPaper('a4', 'landscape')
+            ->download('laporan-mutasi-stok-' . now()->format('Ymd-His') . '.pdf');
     }
 }

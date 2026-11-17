@@ -1,0 +1,1224 @@
+﻿REVIEW LAPORAN PUTRI - SPRINT 4
+
+=========================================
+FILE: app/Http/Controllers/Admin/LaporanProduksiController.php
+=========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\TargetProduksi;
+use Illuminate\Http\Request;
+
+class LaporanProduksiController extends Controller
+{
+    public function index(Request $request)
+    {
+        $request->validate([
+            'tanggal_mulai' => 'nullable|date',
+            'tanggal_akhir' => 'nullable|date|after_or_equal:tanggal_mulai',
+        ]);
+
+        $query = TargetProduksi::query()
+            ->with(['produk', 'penenun'])
+            ->withSum('hasilProduksi as total_selesai', 'jumlah_selesai');
+
+        if ($request->filled('tanggal_mulai')) {
+            $query->whereDate(
+                'tanggal_mulai',
+                '>=',
+                $request->tanggal_mulai
+            );
+        }
+
+        if ($request->filled('tanggal_akhir')) {
+            $query->whereDate(
+                'tanggal_mulai',
+                '<=',
+                $request->tanggal_akhir
+            );
+        }
+
+        // Ringkasan dihitung dari seluruh data yang difilter.
+        $ringkasan = (clone $query)->get();
+
+        $totalTarget = $ringkasan->sum('jumlah_target');
+
+        $totalSelesai = $ringkasan->sum(
+            fn ($item) => $item->total_selesai ?? 0
+        );
+
+        $persentase = $totalTarget > 0
+            ? round(($totalSelesai / $totalTarget) * 100, 1)
+            : 0;
+
+        // Tabel ditampilkan per halaman.
+        $laporan = $query
+            ->orderByDesc('tanggal_mulai')
+            ->orderByDesc('id')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('admin.laporan.produksi', compact(
+            'laporan',
+            'totalTarget',
+            'totalSelesai',
+            'persentase'
+        ));
+    }
+}
+
+=========================================
+FILE: app/Http/Controllers/Admin/LaporanStokController.php
+=========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Stok;
+use App\Models\MutasiStok;
+use Illuminate\Http\Request;
+
+class LaporanStokController extends Controller
+{
+    public function index(Request $request)
+    {
+        $request->validate([
+            'tanggal_mulai' => 'nullable|date',
+            'tanggal_akhir' => 'nullable|date|after_or_equal:tanggal_mulai',
+            'jenis_mutasi' => 'nullable|in:masuk,keluar,penyesuaian',
+        ]);
+
+        // Ringkasan stok saat ini
+        $totalJenisProduk = Stok::whereHas('produk')->count();
+
+        $totalStok = Stok::whereHas('produk')
+            ->sum('jumlah_stok');
+
+        $stokHabis = Stok::whereHas('produk')
+            ->where('jumlah_stok', '<=', 0)
+            ->count();
+
+        // Daftar stok per produk
+        $daftarStok = Stok::with('produk')
+            ->whereHas('produk')
+            ->orderBy('produk_id')
+            ->paginate(10, ['*'], 'stok_page')
+            ->withQueryString();
+
+        // Riwayat mutasi stok
+        $queryMutasi = MutasiStok::with('stok.produk');
+
+        if ($request->filled('tanggal_mulai')) {
+            $queryMutasi->whereDate(
+                'tanggal_mutasi',
+                '>=',
+                $request->tanggal_mulai
+            );
+        }
+
+        if ($request->filled('tanggal_akhir')) {
+            $queryMutasi->whereDate(
+                'tanggal_mutasi',
+                '<=',
+                $request->tanggal_akhir
+            );
+        }
+
+        if ($request->filled('jenis_mutasi')) {
+            $queryMutasi->where(
+                'jenis_mutasi',
+                $request->jenis_mutasi
+            );
+        }
+
+        // Ringkasan mutasi sesuai filter
+        $totalMasuk = (clone $queryMutasi)
+            ->where('jenis_mutasi', 'masuk')
+            ->sum('jumlah');
+
+        $totalKeluar = (clone $queryMutasi)
+            ->where('jenis_mutasi', 'keluar')
+            ->sum('jumlah');
+
+        $riwayatMutasi = $queryMutasi
+            ->orderByDesc('tanggal_mutasi')
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'mutasi_page')
+            ->withQueryString();
+
+        return view('admin.laporan.stok', compact(
+            'totalJenisProduk',
+            'totalStok',
+            'stokHabis',
+            'daftarStok',
+            'totalMasuk',
+            'totalKeluar',
+            'riwayatMutasi'
+        ));
+    }
+}
+
+=========================================
+FILE: resources/views/admin/laporan/index.blade.php
+=========================================
+@extends('layouts.app')
+
+@section('title', 'Laporan - Palugada Bandar')
+
+@section('content')
+<style>
+    .laporan-page {
+        padding: 36px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .laporan-heading {
+        margin-bottom: 30px;
+    }
+
+    .laporan-heading h1 {
+        font-family: 'DM Serif Display', serif;
+        color: #163f32;
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+
+    .laporan-heading p {
+        color: #66746d;
+        font-size: 15px;
+    }
+
+    .laporan-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 22px;
+    }
+
+    .laporan-card {
+        background: #fffdf9;
+        border: 1px solid #e6e0d5;
+        border-radius: 16px;
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        text-decoration: none;
+        color: #163f32;
+        transition: transform .2s, box-shadow .2s;
+    }
+
+    a.laporan-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(22, 63, 50, .10);
+    }
+
+    .laporan-icon {
+        width: 50px;
+        height: 50px;
+        background: #e7efe9;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 23px;
+    }
+
+    .laporan-card h2 {
+        font-family: 'DM Serif Display', serif;
+        font-size: 24px;
+        margin: 0;
+    }
+
+    .laporan-card p {
+        font-size: 14px;
+        color: #66746d;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .laporan-link {
+        font-weight: 700;
+        font-size: 14px;
+        color: #163f32;
+        margin-top: 10px;
+    }
+
+    .laporan-disabled {
+        opacity: .65;
+        cursor: default;
+    }
+
+    @media (max-width: 768px) {
+        .laporan-page {
+            padding: 20px;
+        }
+
+        .laporan-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="laporan-page">
+
+    <div class="laporan-heading">
+        <h1>Laporan</h1>
+        <p>
+            Pantau aktivitas produksi, persediaan stok,
+            penjualan, dan pembayaran Palugada Bandar.
+        </p>
+    </div>
+
+    <div class="laporan-grid">
+
+        {{-- LAPORAN PRODUKSI - PUTRI --}}
+        <a href="{{ route('admin.laporan.produksi') }}"
+           class="laporan-card">
+
+            <div class="laporan-icon">&#128202;</div>
+
+            <h2>Laporan Produksi</h2>
+
+            <p>
+                Lihat target produksi, hasil produksi penenun,
+                sisa target, dan persentase pencapaian.
+            </p>
+
+            <span class="laporan-link">
+                Lihat Laporan &rarr;
+            </span>
+        </a>
+
+        {{-- LAPORAN STOK - PUTRI --}}
+        <a href="{{ route('admin.laporan.stok') }}"
+           class="laporan-card">
+
+            <div class="laporan-icon">&#128230;</div>
+
+            <h2>Laporan Stok</h2>
+
+            <p>
+                Pantau jumlah stok produk dan riwayat
+                mutasi stok masuk maupun keluar.
+            </p>
+
+            <span class="laporan-link">
+                Lihat Laporan &rarr;
+            </span>
+        </a>
+
+        {{-- LAPORAN PENJUALAN - PANJOL --}}
+        <div class="laporan-card laporan-disabled">
+
+            <div class="laporan-icon">&#128200;</div>
+
+            <h2>Laporan Penjualan</h2>
+
+            <p>
+                Lihat ringkasan transaksi penjualan
+                dan perkembangan penjualan produk.
+            </p>
+
+            <span class="laporan-link">
+                Segera tersedia
+            </span>
+        </div>
+
+        {{-- LAPORAN PEMBAYARAN - PANJOL --}}
+        <div class="laporan-card laporan-disabled">
+
+            <div class="laporan-icon">&#128179;</div>
+
+            <h2>Laporan Pembayaran</h2>
+
+            <p>
+                Pantau transaksi pembayaran Cash
+                dan Midtrans.
+            </p>
+
+            <span class="laporan-link">
+                Segera tersedia
+            </span>
+        </div>
+
+    </div>
+</div>
+@endsection
+
+=========================================
+FILE: resources/views/admin/laporan/produksi.blade.php
+=========================================
+@extends('layouts.app')
+
+@section('title', 'Laporan Produksi - Palugada Bandar')
+
+@section('content')
+
+<style>
+    .laporan-produksi {
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 30px;
+        color: #234638;
+    }
+
+    .laporan-produksi * {
+        box-sizing: border-box;
+    }
+
+    .laporan-produksi .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #163f32;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .laporan-produksi .back-link:hover {
+        text-decoration: underline;
+    }
+
+    .laporan-produksi h1 {
+        font-family: 'DM Serif Display', serif;
+        font-size: 34px;
+        font-weight: 400;
+        color: #163f32;
+        margin: 0 0 10px;
+    }
+
+    .laporan-produksi .subtitle {
+        font-size: 15px;
+        color: #68776f;
+        margin-bottom: 26px;
+    }
+
+    /* CARD FILTER TANGGAL */
+    .laporan-produksi .filter-card {
+        background: #fffdf9;
+        border: 1px solid #e6e0d5;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .laporan-produksi .filter-card h2 {
+        font-size: 19px;
+        color: #163f32;
+        margin: 0 0 20px;
+    }
+
+    .laporan-produksi .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .laporan-produksi .filter-group {
+        min-width: 0;
+    }
+
+    .laporan-produksi .filter-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #163f32;
+        margin-bottom: 9px;
+    }
+
+    .laporan-produksi .filter-group input {
+        display: block;
+        width: 100%;
+        padding: 12px 14px;
+        background: #ffffff;
+        border: 1px solid #d8ded7;
+        border-radius: 8px;
+        color: #234638;
+        font-size: 14px;
+    }
+
+    .laporan-produksi .filter-group input:focus {
+        outline: none;
+        border-color: #163f32;
+        box-shadow: 0 0 0 3px rgba(22, 63, 50, 0.10);
+    }
+
+    .laporan-produksi .filter-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .laporan-produksi .btn-filter {
+        display: inline-block;
+        padding: 11px 24px;
+        background: #163f32;
+        border: 1px solid #163f32;
+        border-radius: 8px;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .laporan-produksi .btn-filter:hover {
+        background: #225744;
+    }
+
+    .laporan-produksi .btn-reset {
+        display: inline-block;
+        padding: 11px 24px;
+        background: #e7efe9;
+        border: 1px solid #d8e5dc;
+        border-radius: 8px;
+        color: #163f32;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .laporan-produksi .btn-reset:hover {
+        background: #dce9df;
+    }
+
+    .laporan-produksi .error-box {
+        background: #fff0f0;
+        border: 1px solid #e6b9b9;
+        border-radius: 10px;
+        padding: 14px 18px;
+        color: #a52a2a;
+        margin-bottom: 24px;
+    }
+
+    /* CARD RINGKASAN PRODUKSI */
+    .laporan-produksi .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+        margin-bottom: 26px;
+    }
+
+    .laporan-produksi .summary-card {
+        background: #fffdf9;
+        border: 1px solid #e6e0d5;
+        border-radius: 14px;
+        padding: 24px;
+        min-height: 155px;
+    }
+
+    .laporan-produksi .summary-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #66746d;
+        margin-bottom: 16px;
+    }
+
+    .laporan-produksi .summary-value {
+        display: block;
+        font-family: 'DM Serif Display', serif;
+        font-size: 34px;
+        color: #163f32;
+        margin-bottom: 10px;
+        line-height: 1.2;
+    }
+
+    .laporan-produksi .summary-description {
+        font-size: 13px;
+        color: #77847b;
+    }
+
+    /* CARD TABEL PRODUKSI */
+    .laporan-produksi .table-card {
+        background: #fffdf9;
+        border: 1px solid #e6e0d5;
+        border-radius: 14px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .laporan-produksi .table-card h2 {
+        font-family: 'DM Serif Display', serif;
+        font-size: 24px;
+        font-weight: 400;
+        color: #163f32;
+        margin: 0 0 20px;
+    }
+
+    .laporan-produksi .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .laporan-produksi .production-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #cbd7cf;
+        font-size: 13px;
+        background: #ffffff;
+    }
+
+    .laporan-produksi .production-table thead {
+        background: #e7efe9;
+    }
+
+    .laporan-produksi .production-table th {
+        padding: 14px 12px;
+        border: 1px solid #cbd7cf;
+        color: #163f32;
+        text-align: left;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .laporan-produksi .production-table td {
+        padding: 13px 12px;
+        border: 1px solid #d8e0da;
+        color: #354b40;
+        vertical-align: middle;
+    }
+
+    .laporan-produksi .production-table tbody tr:nth-child(even) {
+        background: #f7faf7;
+    }
+
+    .laporan-produksi .production-table tbody tr:hover {
+        background: #edf4ee;
+    }
+
+    .laporan-produksi .production-table .text-center {
+        text-align: center;
+    }
+
+    .laporan-produksi .production-table .text-nowrap {
+        white-space: nowrap;
+    }
+
+    .laporan-produksi .empty-data {
+        text-align: center;
+        padding: 28px !important;
+        color: #77847b;
+    }
+
+    .laporan-produksi .pagination-wrap {
+        margin-top: 20px;
+    }
+
+    @media (max-width: 900px) {
+        .laporan-produksi .summary-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .laporan-produksi {
+            padding: 18px;
+        }
+
+        .laporan-produksi .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .laporan-produksi .filter-card,
+        .laporan-produksi .summary-card,
+        .laporan-produksi .table-card {
+            padding: 18px;
+        }
+
+        .laporan-produksi h1 {
+            font-size: 28px;
+        }
+    }
+</style>
+
+<div class="laporan-produksi">
+
+    {{-- TOMBOL KEMBALI --}}
+    <a href="{{ route('admin.laporan') }}" class="back-link">
+        &larr; Kembali ke Laporan
+    </a>
+
+    {{-- JUDUL HALAMAN --}}
+    <h1>Laporan Produksi</h1>
+
+    <p class="subtitle">
+        Rekapitulasi target dan hasil produksi tenun PALUGADA.
+    </p>
+
+    {{-- FILTER PERIODE PRODUKSI --}}
+    <div class="filter-card">
+
+        <h2>Filter Periode Produksi</h2>
+
+        <form method="GET" action="{{ route('admin.laporan.produksi') }}">
+
+            <div class="filter-grid">
+
+                {{-- TANGGAL MULAI --}}
+                <div class="filter-group">
+                    <label for="tanggal_mulai">
+                        Tanggal Mulai
+                    </label>
+
+                    <input
+                        type="date"
+                        id="tanggal_mulai"
+                        name="tanggal_mulai"
+                        value="{{ request('tanggal_mulai') }}"
+                    >
+                </div>
+
+                {{-- TANGGAL AKHIR --}}
+                <div class="filter-group">
+                    <label for="tanggal_akhir">
+                        Tanggal Akhir
+                    </label>
+
+                    <input
+                        type="date"
+                        id="tanggal_akhir"
+                        name="tanggal_akhir"
+                        value="{{ request('tanggal_akhir') }}"
+                    >
+                </div>
+
+            </div>
+
+            <div class="filter-actions">
+
+                <button type="submit" class="btn-filter">
+                    Filter
+                </button>
+
+                <a href="{{ route('admin.laporan.produksi') }}"
+                   class="btn-reset">
+                    Reset
+                </a>
+
+            </div>
+
+        </form>
+    </div>
+
+    {{-- PESAN ERROR FILTER --}}
+    @if ($errors->any())
+        <div class="error-box">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
+    {{-- RINGKASAN PRODUKSI --}}
+    <div class="summary-grid">
+
+        {{-- TOTAL TARGET PRODUKSI --}}
+        <div class="summary-card">
+
+            <span class="summary-label">
+                Total Target Produksi
+            </span>
+
+            <strong class="summary-value">
+                {{ number_format($totalTarget, 0, ',', '.') }}
+            </strong>
+
+            <span class="summary-description">
+                Jumlah produk ditargetkan
+            </span>
+
+        </div>
+
+        {{-- TOTAL HASIL PRODUKSI --}}
+        <div class="summary-card">
+
+            <span class="summary-label">
+                Total Hasil Produksi
+            </span>
+
+            <strong class="summary-value">
+                {{ number_format($totalSelesai, 0, ',', '.') }}
+            </strong>
+
+            <span class="summary-description">
+                Jumlah produk selesai
+            </span>
+
+        </div>
+
+        {{-- PENCAPAIAN PRODUKSI --}}
+        <div class="summary-card">
+
+            <span class="summary-label">
+                Pencapaian Produksi
+            </span>
+
+            <strong class="summary-value">
+                {{ number_format($persentase, 1, ',', '.') }}%
+            </strong>
+
+            <span class="summary-description">
+                Persentase realisasi target
+            </span>
+
+        </div>
+
+    </div>
+
+    {{-- TABEL DETAIL PRODUKSI --}}
+    <div class="table-card">
+
+        <h2>Detail Produksi</h2>
+
+        <div class="table-responsive">
+
+            <table class="production-table">
+
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Produk</th>
+                        <th>Penenun</th>
+                        <th>Target</th>
+                        <th>Hasil</th>
+                        <th>Sisa</th>
+                        <th>Pencapaian</th>
+                        <th>Deadline</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @forelse ($laporan as $item)
+
+                        @php
+                            $target = (int) $item->jumlah_target;
+                            $hasil = (int) ($item->total_selesai ?? 0);
+                            $sisa = max(0, $target - $hasil);
+
+                            $capaian = $target > 0
+                                ? round(($hasil / $target) * 100, 1)
+                                : 0;
+                        @endphp
+
+                        <tr>
+
+                            <td>
+                                {{ $laporan->firstItem() + $loop->index }}
+                            </td>
+
+                            <td>
+                                {{ $item->produk?->nama_produk ?? '-' }}
+                            </td>
+
+                            <td>
+                                {{ $item->penenun?->nama ?? '-' }}
+                            </td>
+
+                            <td>
+                                {{ number_format($target, 0, ',', '.') }}
+                            </td>
+
+                            <td>
+                                {{ number_format($hasil, 0, ',', '.') }}
+                            </td>
+
+                            <td>
+                                {{ number_format($sisa, 0, ',', '.') }}
+                            </td>
+
+                            <td class="text-nowrap">
+                                {{ number_format($capaian, 1, ',', '.') }}%
+                            </td>
+
+                            <td class="text-nowrap">
+                                {{ $item->tanggal_deadline?->format('d-m-Y') ?? '-' }}
+                            </td>
+
+                            <td>
+                                {{ ucfirst($item->status ?? '-') }}
+                            </td>
+
+                        </tr>
+
+                    @empty
+
+                        <tr>
+                            <td colspan="9" class="empty-data">
+                                Belum ada data produksi.
+                            </td>
+                        </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {{-- PAGINATION --}}
+        <div class="pagination-wrap">
+            {{ $laporan->links() }}
+        </div>
+
+    </div>
+
+</div>
+
+@endsection
+
+=========================================
+FILE: resources/views/admin/laporan/stok.blade.php
+=========================================
+@extends('layouts.app')
+
+@section('title', 'Laporan Stok - Palugada Bandar')
+
+@section('content')
+<style>
+    .laporan-stok {
+        max-width: 1250px;
+        margin: 0 auto;
+        padding: 28px;
+        color: #234638;
+    }
+
+    .laporan-stok h1 {
+        font-size: 30px;
+        color: #163f32;
+        margin: 10px 0;
+    }
+
+    .laporan-stok h2 {
+        font-size: 21px;
+        color: #163f32;
+        margin: 0 0 20px;
+    }
+
+    .laporan-stok .subtitle {
+        color: #68776f;
+        margin-bottom: 25px;
+    }
+
+    .laporan-stok .back-link {
+        color: #163f32;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .laporan-stok .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 25px;
+    }
+
+    .laporan-stok .summary-card,
+    .laporan-stok .report-card {
+        background: #fffdf9;
+        border: 1px solid #e3e4da;
+        border-radius: 12px;
+        padding: 22px;
+    }
+
+    .laporan-stok .summary-card span {
+        display: block;
+        color: #69766f;
+        margin-bottom: 12px;
+    }
+
+    .laporan-stok .summary-card strong {
+        font-size: 30px;
+        color: #163f32;
+    }
+
+    .laporan-stok .report-card {
+        margin-bottom: 22px;
+    }
+
+    .laporan-stok .table-wrap {
+        overflow-x: auto;
+    }
+
+    .laporan-stok table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    .laporan-stok th {
+        background: #e7efe9;
+        color: #163f32;
+        text-align: left;
+        padding: 12px;
+        white-space: nowrap;
+    }
+
+    .laporan-stok td {
+        padding: 12px;
+        border-bottom: 1px solid #e8e3d9;
+    }
+
+    .laporan-stok .empty {
+        text-align: center;
+        padding: 25px;
+        color: #69766f;
+    }
+
+    .laporan-stok .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-bottom: 16px;
+    }
+
+    .laporan-stok label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 7px;
+    }
+
+    .laporan-stok input,
+    .laporan-stok select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #d9d6cc;
+        border-radius: 7px;
+        box-sizing: border-box;
+    }
+
+    .laporan-stok .btn-filter {
+        background: #163f32;
+        color: white;
+        padding: 11px 18px;
+        border: none;
+        border-radius: 7px;
+        cursor: pointer;
+    }
+
+    .laporan-stok .btn-reset {
+        color: #163f32;
+        margin-left: 12px;
+        text-decoration: none;
+    }
+
+    .laporan-stok .mutasi-summary {
+        display: flex;
+        gap: 25px;
+        margin: 22px 0;
+        flex-wrap: wrap;
+    }
+
+    .laporan-stok .pagination-wrap {
+        margin-top: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .laporan-stok {
+            padding: 15px;
+        }
+
+        .laporan-stok .summary-grid,
+        .laporan-stok .filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="laporan-stok">
+
+    <a href="{{ route('admin.laporan') }}" class="back-link">
+        &larr; Kembali ke Laporan
+    </a>
+
+    <h1>Laporan Stok</h1>
+
+    <p class="subtitle">
+        Ringkasan persediaan produk dan riwayat mutasi stok Palugada Bandar.
+    </p>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <span>Jenis Produk Tercatat</span>
+            <strong>{{ number_format($totalJenisProduk, 0, ',', '.') }}</strong>
+        </div>
+
+        <div class="summary-card">
+            <span>Total Stok Saat Ini</span>
+            <strong>{{ number_format($totalStok, 0, ',', '.') }}</strong>
+        </div>
+
+        <div class="summary-card">
+            <span>Produk Stok Habis</span>
+            <strong>{{ number_format($stokHabis, 0, ',', '.') }}</strong>
+        </div>
+    </div>
+
+    <div class="report-card">
+        <h2>Daftar Stok Produk</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Kode Produk</th>
+                        <th>Nama Produk</th>
+                        <th>Jumlah Stok</th>
+                        <th>Keterangan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($daftarStok as $item)
+                        <tr>
+                            <td>{{ $daftarStok->firstItem() + $loop->index }}</td>
+                            <td>{{ $item->produk?->kode_produk ?? '-' }}</td>
+                            <td>{{ $item->produk?->nama_produk ?? '-' }}</td>
+                            <td>{{ number_format($item->jumlah_stok, 0, ',', '.') }}</td>
+                            <td>
+                                {{ $item->jumlah_stok > 0 ? 'Tersedia' : 'Habis' }}
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="empty">
+                                Belum ada data stok produk.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-wrap">
+            {{ $daftarStok->links() }}
+        </div>
+    </div>
+
+    <div class="report-card">
+        <h2>Riwayat Mutasi Stok</h2>
+
+        <form method="GET" action="{{ route('admin.laporan.stok') }}">
+            <div class="filter-grid">
+                <div>
+                    <label for="tanggal_mulai">Tanggal Mulai</label>
+                    <input type="date" id="tanggal_mulai"
+                           name="tanggal_mulai"
+                           value="{{ request('tanggal_mulai') }}">
+                </div>
+
+                <div>
+                    <label for="tanggal_akhir">Tanggal Akhir</label>
+                    <input type="date" id="tanggal_akhir"
+                           name="tanggal_akhir"
+                           value="{{ request('tanggal_akhir') }}">
+                </div>
+
+                <div>
+                    <label for="jenis_mutasi">Jenis Mutasi</label>
+                    <select id="jenis_mutasi" name="jenis_mutasi">
+                        <option value="">Semua Mutasi</option>
+                        <option value="masuk" {{ request('jenis_mutasi') === 'masuk' ? 'selected' : '' }}>
+                            Masuk
+                        </option>
+                        <option value="keluar" {{ request('jenis_mutasi') === 'keluar' ? 'selected' : '' }}>
+                            Keluar
+                        </option>
+                        <option value="penyesuaian" {{ request('jenis_mutasi') === 'penyesuaian' ? 'selected' : '' }}>
+                            Penyesuaian
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-filter">
+                Terapkan Filter
+            </button>
+
+            <a href="{{ route('admin.laporan.stok') }}" class="btn-reset">
+                Reset
+            </a>
+        </form>
+
+        @if ($errors->any())
+            <p style="color: #a52a2a;">
+                {{ $errors->first() }}
+            </p>
+        @endif
+
+        <div class="mutasi-summary">
+            <div>
+                Total Stok Masuk:
+                <strong>{{ number_format($totalMasuk, 0, ',', '.') }}</strong>
+            </div>
+
+            <div>
+                Total Stok Keluar:
+                <strong>{{ number_format($totalKeluar, 0, ',', '.') }}</strong>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Tanggal</th>
+                        <th>Produk</th>
+                        <th>Jenis Mutasi</th>
+                        <th>Jumlah</th>
+                        <th>Sumber</th>
+                        <th>Catatan</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse ($riwayatMutasi as $item)
+                        <tr>
+                            <td>{{ $riwayatMutasi->firstItem() + $loop->index }}</td>
+                            <td>{{ $item->tanggal_mutasi?->format('d-m-Y H:i') ?? '-' }}</td>
+                            <td>{{ $item->stok?->produk?->nama_produk ?? '-' }}</td>
+                            <td>{{ ucfirst($item->jenis_mutasi) }}</td>
+                            <td>{{ number_format($item->jumlah, 0, ',', '.') }}</td>
+                            <td>{{ ucfirst(str_replace('_', ' ', $item->sumber)) }}</td>
+                            <td>{{ $item->catatan ?: '-' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="empty">
+                                Belum ada riwayat mutasi stok.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-wrap">
+            {{ $riwayatMutasi->links() }}
+        </div>
+    </div>
+</div>
+@endsection
+
+=========================================
+FILE: app/Models/MutasiStok.php
+=========================================
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class MutasiStok extends Model {
+    protected $table='mutasi_stok';
+    protected $fillable=['stok_id','jenis_mutasi','jumlah','sumber','hasil_produksi_id','detail_pesanan_id','catatan','tanggal_mutasi'];
+    protected function casts(): array { return ['tanggal_mutasi'=>'datetime']; }
+    public function stok(){ return $this->belongsTo(Stok::class,'stok_id'); }
+    public function hasilProduksi(){ return $this->belongsTo(HasilProduksi::class,'hasil_produksi_id'); }
+    public function detailPesanan(){ return $this->belongsTo(DetailPesanan::class,'detail_pesanan_id'); }
+}

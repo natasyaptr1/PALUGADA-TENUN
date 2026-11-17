@@ -7,19 +7,25 @@ use App\Http\Controllers\Admin\StokController;
 use App\Http\Controllers\Admin\PesananController;
 use App\Http\Controllers\Admin\PenenunController;
 use App\Http\Controllers\Admin\ProdukController;
+use App\Http\Controllers\Admin\LaporanProduksiController;
+use App\Http\Controllers\Admin\LaporanStokController;
+use App\Http\Controllers\Admin\LaporanPenjualanController;
+
 use App\Http\Controllers\AutentikasiController;
+
 use App\Http\Controllers\Pembeli\AkunController;
 use App\Http\Controllers\Pembeli\KeranjangController;
 use App\Http\Controllers\Pembeli\CheckoutController;
 use App\Http\Controllers\Pembeli\PembayaranController;
 use App\Http\Controllers\Pembeli\PembatalanPesananController;
-use App\Services\RekomendasiProdukService;
-use App\Models\Produk;
 use App\Http\Controllers\Pembeli\RekomendasiController;
 use App\Http\Controllers\Pembeli\OngkirController;
-use App\Http\Controllers\Admin\LaporanProduksiController;
-use App\Http\Controllers\Admin\LaporanStokController;
+
+use App\Services\RekomendasiProdukService;
+use App\Models\Produk;
+
 use Illuminate\Support\Facades\Route;
+
 
 // ==========================================
 // LANDING PAGE
@@ -44,62 +50,62 @@ Route::get('/', function () {
     return view('pembeli.landing', compact('produkPilihan'));
 })->name('landing');
 
-    // ==========================================
-    // KATALOG PRODUK
-    // ==========================================
 
-    Route::get('/katalog', function () {
-        $cari = trim((string) request('cari', ''));
-        $jenis = trim((string) request('jenis', ''));
+// ==========================================
+// KATALOG PRODUK
+// ==========================================
 
-        $hargaMin = request()->filled('harga_min')
-            ? max(0, (float) request('harga_min'))
-            : null;
+Route::get('/katalog', function () {
+    $cari = trim((string) request('cari', ''));
+    $jenis = trim((string) request('jenis', ''));
 
-        $hargaMax = request()->filled('harga_max')
-            ? max(0, (float) request('harga_max'))
-            : null;
+    $hargaMin = request()->filled('harga_min')
+        ? max(0, (float) request('harga_min'))
+        : null;
 
-        $stokTersedia = request('stok_tersedia') === '1';
+    $hargaMax = request()->filled('harga_max')
+        ? max(0, (float) request('harga_max'))
+        : null;
 
-        $daftarProduk = Produk::query()
-            ->with('stok')
-            ->where('status', 'aktif')
-            ->when($cari, function ($query) use ($cari) {
-                $query->where(function ($sub) use ($cari) {
-                    $sub->where('nama_produk', 'like', "%{$cari}%")
-                        ->orWhere('kode_produk', 'like', "%{$cari}%")
-                        ->orWhere('jenis', 'like', "%{$cari}%")
-                        ->orWhere('motif', 'like', "%{$cari}%")
-                        ->orWhere('warna', 'like', "%{$cari}%");
-                });
+    $stokTersedia = request('stok_tersedia') === '1';
+
+    $daftarProduk = Produk::query()
+        ->with('stok')
+        ->where('status', 'aktif')
+        ->when($cari, function ($query) use ($cari) {
+            $query->where(function ($sub) use ($cari) {
+                $sub->where('nama_produk', 'like', "%{$cari}%")
+                    ->orWhere('kode_produk', 'like', "%{$cari}%")
+                    ->orWhere('jenis', 'like', "%{$cari}%")
+                    ->orWhere('motif', 'like', "%{$cari}%")
+                    ->orWhere('warna', 'like', "%{$cari}%");
+            });
+        })
+        ->when($jenis, fn ($query) =>
+            $query->where('jenis', $jenis)
+        )
+        ->when($hargaMin !== null, fn ($query) =>
+            $query->where('harga', '>=', $hargaMin)
+        )
+        ->when($hargaMax !== null, fn ($query) =>
+            $query->where('harga', '<=', $hargaMax)
+        )
+        ->when($stokTersedia, fn ($query) =>
+            $query->whereHas('stok', function ($stok) {
+                $stok->where('jumlah_stok', '>', 0);
             })
-            ->when($jenis, fn ($query) =>
-                $query->where('jenis', $jenis)
-            )
-            ->when($hargaMin !== null, fn ($query) =>
-                $query->where('harga', '>=', $hargaMin)
-            )
-            ->when($hargaMax !== null, fn ($query) =>
-                $query->where('harga', '<=', $hargaMax)
-            )
-            ->when($stokTersedia, fn ($query) =>
-                $query->whereHas('stok', function ($stok) {
-                    $stok->where('jumlah_stok', '>', 0);
-                })
-            )
-            ->latest()
-            ->get();
+        )
+        ->latest()
+        ->get();
 
-        $jenisProduk = Produk::query()
-            ->where('status', 'aktif')
-            ->whereNotNull('jenis')
-            ->where('jenis', '!=', '')
-            ->select('jenis')
-            ->distinct()
-            ->orderBy('jenis')
-            ->pluck('jenis');
-
+    $jenisProduk = Produk::query()
+        ->where('status', 'aktif')
+        ->whereNotNull('jenis')
+        ->where('jenis', '!=', '')
+        ->select('jenis')
+        ->distinct()
+        ->orderBy('jenis')
+        ->pluck('jenis');
 
     $rekomendasiProduk = collect();
     $produkTerlaris = collect();
@@ -118,7 +124,7 @@ Route::get('/', function () {
         $produkTerlaris = $service->produkTerlaris(4);
     }
 
-        return view('pembeli.katalog', compact(
+    return view('pembeli.katalog', compact(
         'daftarProduk',
         'jenisProduk',
         'cari',
@@ -166,7 +172,7 @@ Route::middleware('guest')->group(function () {
 
 
     // ==========================================
-    // FITUR BARU: PREFERENSI SETELAH REGISTRASI
+    // PREFERENSI SETELAH REGISTRASI
     // ==========================================
 
     // Halaman pemilihan kategori favorit
@@ -211,11 +217,14 @@ Route::middleware(['auth', 'peran:pembeli'])
     ->name('pembeli.')
     ->group(function () {
 
+        // BERANDA AKUN
         Route::get(
             '/',
             [AkunController::class, 'beranda']
         )->name('akun');
 
+
+        // PROFIL
         Route::get(
             '/profil',
             [AkunController::class, 'profil']
@@ -226,6 +235,8 @@ Route::middleware(['auth', 'peran:pembeli'])
             [AkunController::class, 'perbaruiProfil']
         )->name('profil.perbarui');
 
+
+        // PESANAN
         Route::get(
             '/pesanan',
             [AkunController::class, 'pesanan']
@@ -266,6 +277,8 @@ Route::middleware(['auth', 'peran:pembeli'])
             [KeranjangController::class, 'hapus']
         )->name('keranjang.hapus');
 
+
+        // CHECKOUT
         Route::get(
             '/checkout',
             [CheckoutController::class, 'index']
@@ -281,6 +294,8 @@ Route::middleware(['auth', 'peran:pembeli'])
             [KeranjangController::class, 'pilihCheckout']
         )->name('keranjang.pilih-checkout');
 
+
+        // REKOMENDASI PRODUK
         Route::get(
             '/rekomendasi',
             [RekomendasiController::class, 'index']
@@ -293,7 +308,7 @@ Route::middleware(['auth', 'peran:pembeli'])
 // ONGKIR PEMBELI - SPRINT 4 PANJOL
 // ==========================================
 
-    Route::middleware(['auth', 'peran:pembeli'])
+Route::middleware(['auth', 'peran:pembeli'])
     ->prefix('akun/ongkir')
     ->name('pembeli.ongkir.')
     ->group(function () {
@@ -303,17 +318,19 @@ Route::middleware(['auth', 'peran:pembeli'])
             '/tujuan',
             [OngkirController::class, 'tujuan']
         )
-        ->middleware('throttle:30,1')
-        ->name('tujuan');
+            ->middleware('throttle:30,1')
+            ->name('tujuan');
 
         // Mengambil pilihan layanan kurir dan ongkir.
         Route::get(
             '/opsi',
             [OngkirController::class, 'opsi']
         )
-        ->middleware('throttle:20,1')
-        ->name('opsi');
+            ->middleware('throttle:20,1')
+            ->name('opsi');
+
     });
+
 
 // ==========================================
 // ADMIN
@@ -324,13 +341,17 @@ Route::middleware(['auth', 'peran:admin'])
     ->name('admin.')
     ->group(function () {
 
+        // BERANDA ADMIN
         Route::get(
             '/beranda',
             BerandaController::class
         )->name('beranda');
 
 
+        // ==========================================
         // PRODUK
+        // ==========================================
+
         Route::resource('produk', ProdukController::class)
             ->except(['show']);
 
@@ -340,7 +361,10 @@ Route::middleware(['auth', 'peran:admin'])
         )->name('produk.foto.destroy');
 
 
+        // ==========================================
         // JENIS PRODUK
+        // ==========================================
+
         Route::resource(
             'jenis-produk',
             JenisProdukController::class
@@ -357,19 +381,28 @@ Route::middleware(['auth', 'peran:admin'])
             ->except(['show']);
 
 
+        // ==========================================
         // PENENUN
+        // ==========================================
+
         Route::resource('penenun', PenenunController::class)
             ->except(['show']);
 
 
+        // ==========================================
         // STOK
+        // ==========================================
+
         Route::get(
             '/stok',
             [StokController::class, 'index']
         )->name('stok');
 
 
+        // ==========================================
         // TARGET PRODUKSI
+        // ==========================================
+
         Route::get(
             '/target-produksi/create',
             [TargetProduksiController::class, 'create']
@@ -406,7 +439,10 @@ Route::middleware(['auth', 'peran:admin'])
         )->name('target-produksi.cancel');
 
 
+        // ==========================================
         // PESANAN ADMIN - PANJOL
+        // ==========================================
+
         Route::resource(
             'pesanan',
             PesananController::class
@@ -423,7 +459,10 @@ Route::middleware(['auth', 'peran:admin'])
         )->name('pesanan.konfirmasi-pembayaran');
 
 
-        // HALAMAN PLACEHOLDER
+        // ==========================================
+        // HALAMAN PLACEHOLDER PEMBAYARAN
+        // ==========================================
+
         Route::view('/pembayaran', 'admin.placeholder', [
             'judul' => 'Pembayaran',
             'deskripsi' => 'Transaksi pembayaran pembeli akan tampil di sini.',
@@ -431,27 +470,74 @@ Route::middleware(['auth', 'peran:admin'])
 
 
         // ==========================================
-        // LAPORAN PRODUKSI DAN STOK - SPRINT 4 PUTRI
+        // LAPORAN ADMIN
         // ==========================================
 
-        // Halaman utama laporan.
+        // HALAMAN UTAMA LAPORAN
         Route::view(
             '/laporan',
             'admin.laporan.index'
         )->name('laporan');
 
-        // Laporan produksi.
+
+        // ==========================================
+        // LAPORAN PRODUKSI
+        // ==========================================
+
         Route::get(
             '/laporan/produksi',
             [LaporanProduksiController::class, 'index']
         )->name('laporan.produksi');
 
-        // Laporan stok.
+        Route::get(
+            '/laporan/produksi/export/pdf',
+            [LaporanProduksiController::class, 'exportPdf']
+        )->name('laporan.produksi.pdf');
+
+        Route::get(
+            '/laporan/produksi/export/excel',
+            [LaporanProduksiController::class, 'exportExcel']
+        )->name('laporan.produksi.excel');
+
+
+        // ==========================================
+        // LAPORAN STOK
+        // ==========================================
+
         Route::get(
             '/laporan/stok',
             [LaporanStokController::class, 'index']
         )->name('laporan.stok');
 
+        Route::get(
+            '/laporan/stok/export/pdf',
+            [LaporanStokController::class, 'exportPdf']
+        )->name('laporan.stok.pdf');
+
+        Route::get(
+            '/laporan/stok/export/excel',
+            [LaporanStokController::class, 'exportExcel']
+        )->name('laporan.stok.excel');
+
+
+        // ==========================================
+        // LAPORAN PENJUALAN
+        // ==========================================
+
+        Route::get(
+            '/laporan/penjualan',
+            [LaporanPenjualanController::class, 'index']
+        )->name('laporan.penjualan');
+
+        Route::get(
+            '/laporan/penjualan/export/pdf',
+            [LaporanPenjualanController::class, 'exportPdf']
+        )->name('laporan.penjualan.pdf');
+
+        Route::get(
+            '/laporan/penjualan/export/excel',
+            [LaporanPenjualanController::class, 'exportExcel']
+        )->name('laporan.penjualan.excel');
 
     });
 
