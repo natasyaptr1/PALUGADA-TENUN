@@ -33,13 +33,16 @@
 .pg-cart-divider{border-top:1px solid #e6ebe6;margin:20px 0}
 .pg-cart-total{font-size:23px;font-weight:800;color:#174b39}
 .pg-cart-checkout{display:block;text-align:center;width:100%;background:#174b39;color:white;border:0;border-radius:11px;padding:15px;font-size:14px;font-weight:700;cursor:pointer}
-.pg-cart-checkout:disabled{opacity:.45;cursor:not-allowed}
+.pg-cart-checkout:disabled,.pg-cart-btn:disabled{opacity:.45;cursor:not-allowed}
 .pg-cart-notice{margin:0 0 20px;border-radius:10px;padding:14px 16px;background:#e9f6ed;color:#216f40}
 .pg-cart-error{background:#fff0ef;color:#a84036}
 .pg-cart-empty{border:1px solid #e1e9e1;background:white;border-radius:18px;padding:60px 24px;text-align:center}
+.pg-cart-qty-error{width:100%;font-size:12px;color:#a84036;font-weight:600;margin-top:4px}
+.pg-cart-number.input-error{border-color:#a84036;background:#fff7f6}
 @media(max-width:900px){.pg-cart-grid{grid-template-columns:1fr}.pg-cart-summary{position:static}}
 @media(max-width:600px){.pg-cart{padding:22px 14px 50px}.pg-cart-item{padding:16px;gap:10px;flex-wrap:wrap}.pg-cart-image{width:85px;height:85px}.pg-cart-select{margin-top:30px}.pg-cart-subtotal{width:100%;text-align:right}.pg-cart-name{font-size:15px}}
 </style>
+
 <section class="pg-cart">
     <header class="pg-cart-header">
         <div>
@@ -50,8 +53,15 @@
         <a class="pg-cart-link" href="{{ route('pembeli.katalog') }}">Lihat Koleksi</a>
     </header>
 
-    @if(session('success')) <div class="pg-cart-notice">{{ session('success') }}</div> @endif
-    @if($errors->any()) <div class="pg-cart-notice pg-cart-error">{{ $errors->first() }}</div> @endif
+    @if(session('success'))
+        <div class="pg-cart-notice">{{ session('success') }}</div>
+    @endif
+
+    @if($errors->any())
+        <div class="pg-cart-notice pg-cart-error" role="alert">
+            {{ $errors->first() }}
+        </div>
+    @endif
 
     @if(!$keranjang || $keranjang->detail->isEmpty())
         <div class="pg-cart-empty">
@@ -60,15 +70,25 @@
             <a class="pg-cart-link" href="{{ route('pembeli.katalog') }}">Mulai Belanja</a>
         </div>
     @else
-        <form id="pg-selected-form" method="POST" action="{{ route('pembeli.keranjang.pilih-checkout') }}">
+
+        <form id="pg-selected-form"
+              method="POST"
+              action="{{ route('pembeli.keranjang.pilih-checkout') }}">
             @csrf
         </form>
+
         <div class="pg-cart-grid">
             <div class="pg-cart-list">
                 <div class="pg-cart-list-head">
-                    <label><input type="checkbox" id="pg-select-all"> <strong>Pilih Semua</strong></label>
-                    <span class="pg-cart-muted">{{ $keranjang->detail->count() }} produk di keranjang</span>
+                    <label>
+                        <input type="checkbox" id="pg-select-all">
+                        <strong>Pilih Semua</strong>
+                    </label>
+                    <span class="pg-cart-muted">
+                        {{ $keranjang->detail->count() }} produk di keranjang
+                    </span>
                 </div>
+
                 @foreach($keranjang->detail as $item)
                     @php
                         $produk = $item->produk;
@@ -84,54 +104,123 @@
                                     ? asset($foto) : asset('storage/'.$foto)))
                             : null;
                     @endphp
+
                     <article class="pg-cart-item">
-                        <input class="pg-cart-select pg-item-check" form="pg-selected-form"
-                               type="checkbox" name="detail_ids[]" value="{{ $item->id }}"
-                               data-total="{{ $subtotal }}" {{ (!$produk || $stok < $item->jumlah) ? 'disabled' : '' }}
+                        <input class="pg-cart-select pg-item-check"
+                               form="pg-selected-form"
+                               type="checkbox"
+                               name="detail_ids[]"
+                               value="{{ $item->id }}"
+                               data-total="{{ $subtotal }}"
+                               {{ (!$produk || $stok < $item->jumlah) ? 'disabled' : '' }}
                                aria-label="Pilih {{ $produk?->nama_produk ?? 'produk' }}">
+
                         <div class="pg-cart-image">
                             @if($fotoUrl)
-                                <img src="{{ $fotoUrl }}" alt="Foto {{ $produk?->nama_produk }}"
+                                <img src="{{ $fotoUrl }}"
+                                     alt="Foto {{ $produk?->nama_produk }}"
                                      onerror="this.style.display='none';this.parentElement.append('Foto tidak tersedia')">
                             @else
                                 Foto belum tersedia
                             @endif
                         </div>
+
                         <div class="pg-cart-details">
-                            <h3 class="pg-cart-name">{{ $produk?->nama_produk ?? 'Produk tidak tersedia' }}</h3>
-                            <p class="pg-cart-stock">Stok tersedia: {{ $stok }}</p>
-                            <div class="pg-cart-price">Rp{{ number_format($harga, 0, ',', '.') }}</div>
+                            <h3 class="pg-cart-name">
+                                {{ $produk?->nama_produk ?? 'Produk tidak tersedia' }}
+                            </h3>
+
+                            <p class="pg-cart-stock">
+                                Stok tersedia: {{ $stok }}
+                            </p>
+
+                            <div class="pg-cart-price">
+                                Rp{{ number_format($harga, 0, ',', '.') }}
+                            </div>
+
                             <div class="pg-cart-actions">
-                                <form class="pg-cart-qty" method="POST" action="{{ route('pembeli.keranjang.ubah', $item->id) }}">
-                                    @csrf @method('PUT')
-                                    <label for="qty-{{ $item->id }}" class="pg-cart-muted">Jumlah</label>
-                                    <input class="pg-cart-number" id="qty-{{ $item->id }}" type="number"
-                                           name="jumlah" min="1" max="{{ max(1, $stok) }}"
-                                           value="{{ $item->jumlah }}" required>
-                                    <button type="submit" class="pg-cart-btn">Perbarui</button>
+                                <form class="pg-cart-qty"
+                                      method="POST"
+                                      action="{{ route('pembeli.keranjang.ubah', $item->id) }}"
+                                      novalidate>
+                                    @csrf
+                                    @method('PUT')
+
+                                    <label for="qty-{{ $item->id }}" class="pg-cart-muted">
+                                        Jumlah
+                                    </label>
+
+                                    <input class="pg-cart-number"
+                                           id="qty-{{ $item->id }}"
+                                           type="number"
+                                           name="jumlah"
+                                           min="1"
+                                           max="{{ $stok }}"
+                                           data-stok="{{ $stok }}"
+                                           value="{{ $item->jumlah }}"
+                                           required>
+
+                                    <button type="submit"
+                                            class="pg-cart-btn pg-cart-update">
+                                        Perbarui
+                                    </button>
+
+                                    <div class="pg-cart-qty-error"
+                                         role="alert"
+                                         aria-live="polite"
+                                         style="display:none;">
+                                    </div>
                                 </form>
-                                <form method="POST" action="{{ route('pembeli.keranjang.hapus', $item->id) }}"
+
+                                <form method="POST"
+                                      action="{{ route('pembeli.keranjang.hapus', $item->id) }}"
                                       onsubmit="return confirm('Yakin ingin menghapus produk ini?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="pg-cart-btn pg-cart-delete">Hapus</button>
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="pg-cart-btn pg-cart-delete">
+                                        Hapus
+                                    </button>
                                 </form>
                             </div>
                         </div>
-                        <div class="pg-cart-subtotal">Rp{{ number_format($subtotal, 0, ',', '.') }}</div>
+
+                        <div class="pg-cart-subtotal">
+                            Rp{{ number_format($subtotal, 0, ',', '.') }}
+                        </div>
                     </article>
                 @endforeach
             </div>
+
             <aside class="pg-cart-summary">
                 <h2>Ringkasan Belanja</h2>
-                <div class="pg-cart-summary-line"><span>Produk dipilih</span><strong id="pg-count">0 produk</strong></div>
+
+                <div class="pg-cart-summary-line">
+                    <span>Produk dipilih</span>
+                    <strong id="pg-count">0 produk</strong>
+                </div>
+
                 <div class="pg-cart-divider"></div>
-                <div class="pg-cart-summary-line"><span>Total checkout</span><strong class="pg-cart-total" id="pg-total">Rp0</strong></div>
-                <p class="pg-cart-muted">Hanya produk yang dicentang yang masuk ke checkout. Produk lainnya tetap di keranjang.</p>
-                <button id="pg-checkout-button" form="pg-selected-form" type="submit" class="pg-cart-checkout" disabled>
+
+                <div class="pg-cart-summary-line">
+                    <span>Total checkout</span>
+                    <strong class="pg-cart-total" id="pg-total">Rp0</strong>
+                </div>
+
+                <p class="pg-cart-muted">
+                    Hanya produk yang dicentang yang masuk ke checkout.
+                    Produk lainnya tetap di keranjang.
+                </p>
+
+                <button id="pg-checkout-button"
+                        form="pg-selected-form"
+                        type="submit"
+                        class="pg-cart-checkout"
+                        disabled>
                     Checkout Produk Terpilih
                 </button>
             </aside>
         </div>
+
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const boxes = Array.from(document.querySelectorAll('.pg-item-check'));
@@ -139,21 +228,82 @@
                 const count = document.getElementById('pg-count');
                 const total = document.getElementById('pg-total');
                 const button = document.getElementById('pg-checkout-button');
+                const checkoutForm = document.getElementById('pg-selected-form');
                 const format = new Intl.NumberFormat('id-ID');
+
+                const pesanStok = 'Barang yang Anda beli melebihi stok yang tersedia';
+
                 function update() {
-                    const selected = boxes.filter(el => el.checked);
-                    const sum = selected.reduce((s, el) => s + Number(el.dataset.total || 0), 0);
+                    const selected = boxes.filter(el => el.checked && !el.disabled);
+                    const sum = selected.reduce(
+                        (s, el) => s + Number(el.dataset.total || 0), 0
+                    );
+
                     count.textContent = selected.length + ' produk';
                     total.textContent = 'Rp' + format.format(sum);
                     button.disabled = selected.length === 0;
+
                     const eligible = boxes.filter(el => !el.disabled);
                     all.checked = eligible.length > 0 && eligible.every(el => el.checked);
                     all.indeterminate = selected.length > 0 && !all.checked;
                 }
-                all.addEventListener('change', () => { boxes.forEach(el => {
-                    if (!el.disabled) el.checked = all.checked;
-                }); update(); });
+
+                all.addEventListener('change', () => {
+                    boxes.forEach(el => {
+                        if (!el.disabled) el.checked = all.checked;
+                    });
+                    update();
+                });
+
                 boxes.forEach(el => el.addEventListener('change', update));
+
+                document.querySelectorAll('.pg-cart-qty').forEach(form => {
+                    const input = form.querySelector('.pg-cart-number');
+                    const error = form.querySelector('.pg-cart-qty-error');
+                    const updateButton = form.querySelector('.pg-cart-update');
+                    const stok = Number(input.dataset.stok);
+
+                    function validasiJumlah() {
+                        const nilai = input.value.trim();
+                        const jumlah = Number(nilai);
+
+                        let pesan = '';
+
+                        if (nilai === '' || !Number.isInteger(jumlah) || jumlah < 1) {
+                            pesan = 'Jumlah barang minimal 1.';
+                        } else if (jumlah > stok) {
+                            pesan = pesanStok;
+                        }
+
+                        error.textContent = pesan;
+                        error.style.display = pesan ? 'block' : 'none';
+                        input.classList.toggle('input-error', Boolean(pesan));
+                        input.setAttribute('aria-invalid', pesan ? 'true' : 'false');
+                        updateButton.disabled = Boolean(pesan);
+
+                        return pesan === '';
+                    }
+
+                    input.addEventListener('input', validasiJumlah);
+
+                    form.addEventListener('submit', function (event) {
+                        if (!validasiJumlah()) {
+                            event.preventDefault();
+                        }
+                    });
+
+                    validasiJumlah();
+                });
+
+                checkoutForm.addEventListener('submit', function (event) {
+                    const invalidSelected = boxes.some(el => el.checked && el.disabled);
+
+                    if (invalidSelected) {
+                        event.preventDefault();
+                        alert(pesanStok);
+                    }
+                });
+
                 update();
             });
         </script>

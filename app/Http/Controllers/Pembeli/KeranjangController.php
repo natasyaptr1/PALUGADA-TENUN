@@ -82,7 +82,7 @@ class KeranjangController extends Controller
 
             $jumlahBaru = (int) $data['jumlah'] + (int) ($detail?->jumlah ?? 0);
             if ($jumlahBaru > (int) ($stok?->jumlah_stok ?? 0)) {
-                throw ValidationException::withMessages(['jumlah' => 'Stok produk tidak mencukupi.']);
+                throw ValidationException::withMessages(['jumlah' => 'Barang yang Anda beli melebihi stok yang tersedia']);
             }
 
             if ($detail) {
@@ -118,7 +118,7 @@ class KeranjangController extends Controller
 
             $stok = Stok::where('produk_id', $item->produk_id)->lockForUpdate()->first();
             if ((int) $data['jumlah'] > (int) ($stok?->jumlah_stok ?? 0)) {
-                throw ValidationException::withMessages(['jumlah' => 'Jumlah melebihi stok tersedia.']);
+                throw ValidationException::withMessages(['jumlah' => 'Barang yang Anda beli melebihi stok yang tersedia']);
             }
 
             $item->update(['jumlah' => $data['jumlah']]);
